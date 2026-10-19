@@ -1,0 +1,130 @@
+@import "tailwindcss";
+@import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap');
+
+@layer base {
+  :root {
+    --font-heading: 'Clash Display', system-ui, -apple-system, sans-serif;
+    --font-body: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* Theme Tokens: Deep Black (Default) */
+    --color-deep-black: #000000;
+    --color-surface: #0a0a0a;
+    --color-surface-elevated: #111111;
+    --color-border-subtle: #1c1c1c;
+    --color-border-card: #242424;
+
+    /* Gold / Warm Spectrum */
+    --color-gold-light: #FDE047;
+    --color-gold-yellow: #F59E0B;
+    --color-gold-dark: #D97706;
+    --color-gold-deeper: #B45309;
+    --color-gold-orange: #EA580C;
+  }
+
+  body.theme-light {
+    background-color: #FFFFFF !important;
+    color: #111827 !important;
+  }
+
+  body.theme-light .bg-\[\#000000\],
+  body.theme-light .bg-deep-black {
+    background-color: #FFFFFF !important;
+  }
+
+  body.theme-light .bg-\[\#050505\],
+  body.theme-light .bg-\[\#080808\],
+  body.theme-light .bg-\[\#0A0A0A\],
+  body.theme-light .bg-card-dark {
+    background-color: #F9FAFB !important;
+  }
+
+  body.theme-light .bg-\[\#0F0F0F\],
+  body.theme-light .bg-\[\#111111\],
+  body.theme-light .bg-\[\#121212\],
+  body.theme-light .bg-\[\#141414\],
+  body.theme-light .bg-\[\#1C1C1C\] {
+    background-color: #F3F4F6 !important;
+    color: #1F2937 !important;
+  }
+
+  body.theme-light .border-\[\#1A1A1A\],
+  body.theme-light .border-\[\#1C1C1C\],
+  body.theme-light .border-\[\#1F1F1F\],
+  body.theme-light .border-\[\#222222\],
+  body.theme-light .border-\[\#242424\],
+  body.theme-light .border-\[\#262626\] {
+    border-color: #E5E7EB !important;
+  }
+
+  body.theme-light .text-white {
+    color: #111827 !important;
+  }
+
+  body.theme-light .text-neutral-300,
+  body.theme-light .text-neutral-400 {
+    color: #4B5563 !important;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background-color: #000000;
+    color: #FFFFFF;
+  }
+
+  /* All Headings strictly CLASH DISPLAY SEMI BOLD (weight: 600) */
+  h1, h2, h3, h4, h5, h6, .font-heading, [class*="font-['Outfit']"] {
+    font-family: 'Clash Display', var(--font-heading) !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.015em;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: inherit;
+}
+::-webkit-scrollbar-thumb {
+  background: #D97706;
+  border-radius: 9999px;
+}
+
+/* Brand Accent Shading Utilities */
+.text-gold-light {
+  color: #FDE047;
+}
+.text-gold-dark {
+  color: #D97706;
+}
+.text-gold-orange {
+  color: #EA580C;
+}
+.bg-deep-black {
+  background-color: #000000;
+}
+.bg-card-dark {
+  background-color: #0A0A0A;
+}
+.border-card-dark {
+  border-color: #202020;
+}
+
+.gradient-gold-text {
+  background: linear-gradient(135deg, #FDE047 0%, #D97706 50%, #EA580C 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient-gold-bg {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 60%, #C2410C 100%);
+}
+
+.gradient-gold-badge {
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.15) 0%, rgba(234, 88, 12, 0.12) 100%);
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  color: #D97706;
+}

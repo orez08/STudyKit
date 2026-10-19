@@ -1,0 +1,137 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Student user profile and overall study metrics",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 150 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "totalDocuments": { "type": "number" },
+        "totalSummaries": { "type": "number" },
+        "totalQuizzes": { "type": "number" },
+        "averageScore": { "type": "number" },
+        "flashcardsReviewed": { "type": "number" },
+        "studySessions": { "type": "number" },
+        "dailyGoalMinutes": { "type": "number" },
+        "weeklyGoalQuizzes": { "type": "number" }
+      },
+      "required": ["email"]
+    },
+    "DocumentItem": {
+      "title": "DocumentItem",
+      "description": "Uploaded study document metadata and extracted text",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string", "maxLength": 200 },
+        "size": { "type": "number" },
+        "pageCount": { "type": "number" },
+        "extractedText": { "type": "string", "maxLength": 500000 },
+        "uploadedAt": { "type": "string" }
+      },
+      "required": ["userId", "name", "extractedText"]
+    },
+    "SummaryItem": {
+      "title": "SummaryItem",
+      "description": "AI-generated structured study notes and summaries",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "docId": { "type": "string" },
+        "title": { "type": "string", "maxLength": 250 },
+        "overview": { "type": "string" },
+        "executiveSummary": { "type": "string" },
+        "chapters": { "type": "string" },
+        "keyPoints": { "type": "string" },
+        "definitions": { "type": "string" },
+        "formulas": { "type": "string" },
+        "datesFacts": { "type": "string" },
+        "keyTakeaways": { "type": "string" },
+        "revisionChecklist": { "type": "string" },
+        "summaryLength": { "type": "string" },
+        "summaryStyle": { "type": "string" },
+        "targetLevel": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "title"]
+    },
+    "QuizItem": {
+      "title": "QuizItem",
+      "description": "AI generated quiz and student answers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string", "maxLength": 200 },
+        "docId": { "type": "string" },
+        "questions": { "type": "string" },
+        "score": { "type": "number" },
+        "totalQuestions": { "type": "number" },
+        "completed": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "title"]
+    },
+    "FlashcardDeck": {
+      "title": "FlashcardDeck",
+      "description": "Flashcard deck with spaced repetition records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string", "maxLength": 200 },
+        "cards": { "type": "string" },
+        "totalCards": { "type": "number" },
+        "cardsLearned": { "type": "number" },
+        "lastStudied": { "type": "string" }
+      },
+      "required": ["userId", "title"]
+    },
+    "PlannerTask": {
+      "title": "PlannerTask",
+      "description": "Student planner task or exam schedule item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string", "maxLength": 200 },
+        "subject": { "type": "string", "maxLength": 100 },
+        "dueDate": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "priority": { "type": "string" }
+      },
+      "required": ["userId", "title"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Student user profile document"
+    },
+    "/users/{userId}/documents/{docId}": {
+      "schema": "DocumentItem",
+      "description": "Student's private uploaded documents"
+    },
+    "/users/{userId}/summaries/{summaryId}": {
+      "schema": "SummaryItem",
+      "description": "Student's private generated summaries"
+    },
+    "/users/{userId}/quizzes/{quizId}": {
+      "schema": "QuizItem",
+      "description": "Student's private quizzes and test results"
+    },
+    "/users/{userId}/flashcards/{deckId}": {
+      "schema": "FlashcardDeck",
+      "description": "Student's private flashcard decks"
+    },
+    "/users/{userId}/plannerTasks/{taskId}": {
+      "schema": "PlannerTask",
+      "description": "Student's private revision schedule and planner tasks"
+    }
+  }
+}

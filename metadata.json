@@ -1,0 +1,6 @@
+{
+  "name": "Study Kit",
+  "description": "An intelligent AI-powered educational website that transforms learning materials into structured summaries, interactive quizzes, flashcards, practice tests, and revision plans.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
