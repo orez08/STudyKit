@@ -1,6 +1,6 @@
 {
-  "summary": "Implementation plan to fix PDF importer JSON error handling in server.ts/frontend and update high-contrast mode to strict White background, Dark Yellow accent, Black text, and zero unnecessary borders.",
-  "updatedAt": "2026-10-19T07:24:47.637230478Z",
+  "summary": "Implementation plan for client-side fallbacks on static hosting (Netlify/GitHub Pages) to prevent HTML 404 doctype JSON errors during PDF extraction and AI summarization.",
+  "updatedAt": "2026-10-19T07:44:35.681093882Z",
   "requestFeedback": true,
   "userFacing": true
 }

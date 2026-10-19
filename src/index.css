@@ -27,50 +27,69 @@
     color: #000000 !important;
   }
 
-  body.theme-light .bg-\[\#000000\],
-  body.theme-light .bg-deep-black,
-  body.theme-light .bg-\[\#050505\],
-  body.theme-light .bg-\[\#080808\],
-  body.theme-light .bg-\[\#0A0A0A\],
-  body.theme-light .bg-card-dark,
-  body.theme-light .bg-\[\#0F0F0F\],
-  body.theme-light .bg-\[\#111111\],
-  body.theme-light .bg-\[\#121212\],
-  body.theme-light .bg-\[\#141414\],
-  body.theme-light .bg-\[\#1C1C1C\] {
-    background-color: #FFFFFF !important;
-    color: #000000 !important;
+  body.theme-light * {
     border: none !important;
-    border-color: transparent !important;
     box-shadow: none !important;
   }
 
-  body.theme-light .border-\[\#1A1A1A\],
-  body.theme-light .border-\[\#1C1C1C\],
-  body.theme-light .border-\[\#1F1F1F\],
-  body.theme-light .border-\[\#222222\],
-  body.theme-light .border-\[\#242424\],
-  body.theme-light .border-\[\#262626\] {
+  body.theme-light [class*="bg-"],
+  body.theme-light div,
+  body.theme-light section,
+  body.theme-light header,
+  body.theme-light footer,
+  body.theme-light nav,
+  body.theme-light main,
+  body.theme-light aside {
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
     border: none !important;
-    border-color: transparent !important;
+    box-shadow: none !important;
   }
 
-  body.theme-light .text-white {
+  body.theme-light button {
+    background-color: #F3F4F6 !important;
+    color: #000000 !important;
+    border: none !important;
+  }
+
+  body.theme-light button[class*="gradient"],
+  body.theme-light button[class*="from-"],
+  body.theme-light button[class*="bg-[#D97706]"],
+  body.theme-light button[class*="bg-amber"],
+  body.theme-light button[class*="bg-orange"] {
+    background-color: #B45309 !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+  }
+
+  body.theme-light input,
+  body.theme-light select,
+  body.theme-light textarea {
+    background-color: #F9FAFB !important;
+    color: #000000 !important;
+    border: 1px solid #B45309 !important;
+  }
+
+  body.theme-light .text-white,
+  body.theme-light .text-neutral-300,
+  body.theme-light .text-neutral-400,
+  body.theme-light h1,
+  body.theme-light h2,
+  body.theme-light h3,
+  body.theme-light h4,
+  body.theme-light h5,
+  body.theme-light h6,
+  body.theme-light span,
+  body.theme-light p {
     color: #000000 !important;
   }
 
-  body.theme-light .text-neutral-300,
-  body.theme-light .text-neutral-400 {
-    color: #374151 !important;
-  }
-
-  /* High contrast category and badge highlights with dark yellow accent */
-  body.theme-light span[class*="amber"],
+  body.theme-light [class*="text-[#D97706]"],
+  body.theme-light [class*="text-[#FDE047]"],
+  body.theme-light [class*="text-amber"],
   body.theme-light span[class*="badge"],
-  body.theme-light span[class*="category"],
-  body.theme-light div[class*="category"] {
+  body.theme-light span[class*="category"] {
     color: #B45309 !important;
-    border: none !important;
     font-weight: 700 !important;
   }
 
