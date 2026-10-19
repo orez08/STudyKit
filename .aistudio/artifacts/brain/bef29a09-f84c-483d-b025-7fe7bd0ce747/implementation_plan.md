@@ -1,38 +1,30 @@
-# Implementation Plan - Study Groups Enhancements
+# Implementation Plan - PDF Importer Robustness & High-Contrast Theme Redesign
 
-Adding owner deactivation, join requests approval queue, and interactive group chat supporting text messages, file attachments, and browser voice note recording/playback.
+Fixing PDF import server response parsing (Invalid JSON handling) and updating the high-contrast theme to pure white background, dark yellow accents, black text, and zero unnecessary borders.
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> - **Group Deactivation**: Owners can deactivate the group, which locks chat and prevents new messages or sharing, displaying an active deactivation banner.
-> - **Join Requests & Approval**: Users submit requests to join via invite codes; group owners receive a dedicated approval queue to approve or reject pending members.
-> - **Rich Group Chat**: Full messaging interface supporting text messages, document/file sharing, and browser microphone audio recording (`MediaRecorder`) with playback.
+> - **PDF Importer Error Resilience**: Ensuring server endpoints `/api/pdf/extract-and-process` and `/api/ai/summarize` strictly return valid JSON responses in all error conditions, and frontend gracefully handles text/JSON parse fallbacks.
+> - **High-Contrast Theme Specification**:
+>   - Background: Pure White (`#FFFFFF`)
+>   - Text: Pure Black (`#000000`)
+>   - Accent: Dark Yellow (`#D97706` / `#B45309`)
+>   - Borders: Completely removed from all cards, containers, and inputs (zero unnecessary border lines).
 
 ---
 
 ## 1. Overview & Core Concept
 
-- **What It Does**: Upgrades student workspace study groups into an interactive collaborative hub with owner controls, membership requests, and multimedia messaging (text, files, voice notes).
-- **Key Value**: Enables real student collaboration with security controls (deactivation, approval workflow) and multimedia communication.
+- **What It Does**: Eliminates "Invalid JSON response from server" errors during PDF processing and restyles high-contrast mode to strict typographic and color rules.
+- **Key Value**: Flawless PDF upload/extraction and clean, borderless high-contrast accessibility.
 
 ## 2. User Experience & Visual Design
 
-- **Group Header Controls**: Deactivate button for owners with instant lock state.
-- **Join Requests Queue**: Owner notification tab showing pending members with Accept / Reject buttons.
-- **Multimedia Chat Panel**: Message stream with text, file badges, and audio voice note players (`<audio>` elements with recording timer).
+- **High-Contrast Mode**: Clean, borderless cards and panels on a crisp white background with black typography and dark yellow brand/interactive accents.
+- **PDF Importer**: Robust extraction with detailed error messages if any API issues occur.
 
 ## 3. Technical Architecture & Data Strategy
 
-```
-┌────────────────────────────────────────────────────────┐
-│                   StudyGroupItem                       │
-│  (id, name, isDeactivated, pendingRequests, members,   │
-│   messages: [{ id, sender, type: 'text'|'file'|'voice', │
-│                content, audioUrl, timestamp }],        │
-│   sharedItems)                                         │
-└────────────────────────────────────────────────────────┘
-```
-
-- **Persistence**: Saved to `localStorage` (`studykit_study_groups`) and synced with reactive state.
-- **Voice Recording**: Uses `navigator.mediaDevices.getUserMedia({ audio: true })` and `MediaRecorder` to record audio blobs and convert to base64 data URLs for storage and playback.
+- **Server Endpoints (`server.ts`)**: Add explicit `try/catch` JSON response headers and fallback text parsing for PDF uploads.
+- **Global Styles (`index.css`)**: Set `body.theme-light` styles to `#FFFFFF` background, `#000000` text, `#D97706` accent, and `border: none !important` on cards/containers.

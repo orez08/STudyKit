@@ -23,8 +23,8 @@
   }
 
   body.theme-light {
-    background-color: #000000 !important;
-    color: #FFFFFF !important;
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
   }
 
   body.theme-light .bg-\[\#000000\],
@@ -38,9 +38,11 @@
   body.theme-light .bg-\[\#121212\],
   body.theme-light .bg-\[\#141414\],
   body.theme-light .bg-\[\#1C1C1C\] {
-    background-color: #000000 !important;
-    color: #FFFFFF !important;
-    border-color: #FFFF00 !important;
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+    border: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
   }
 
   body.theme-light .border-\[\#1A1A1A\],
@@ -49,25 +51,26 @@
   body.theme-light .border-\[\#222222\],
   body.theme-light .border-\[\#242424\],
   body.theme-light .border-\[\#262626\] {
-    border-color: #FFFF00 !important;
+    border: none !important;
+    border-color: transparent !important;
   }
 
   body.theme-light .text-white {
-    color: #FFFFFF !important;
+    color: #000000 !important;
   }
 
   body.theme-light .text-neutral-300,
   body.theme-light .text-neutral-400 {
-    color: #FDE047 !important;
+    color: #374151 !important;
   }
 
-  /* High contrast category and badge highlights */
+  /* High contrast category and badge highlights with dark yellow accent */
   body.theme-light span[class*="amber"],
   body.theme-light span[class*="badge"],
   body.theme-light span[class*="category"],
   body.theme-light div[class*="category"] {
-    color: #FFFF00 !important;
-    border-color: #FFFF00 !important;
+    color: #B45309 !important;
+    border: none !important;
     font-weight: 700 !important;
   }
 
