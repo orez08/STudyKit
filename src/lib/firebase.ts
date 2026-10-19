@@ -6,8 +6,16 @@ import {
   persistentMultipleTabManager,
   doc,
   getDocFromServer,
+  setLogLevel,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
+
+// Suppress verbose Firestore backend offline notices
+try {
+  setLogLevel('error');
+} catch (e) {
+  // Ignore
+}
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
@@ -65,15 +73,19 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Boot connection check as mandated by Firebase skill
+// Boot connection check as mandated by Firebase skill with graceful offline timeout
 export async function testConnection(): Promise<boolean> {
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('offline')), 2000)
+    );
+    await Promise.race([
+      getDocFromServer(doc(db, 'test', 'connection')),
+      timeoutPromise,
+    ]);
     return true;
-  } catch (error: any) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firestore is currently running offline or connecting.');
-    }
+  } catch {
+    // Operates in offline mode seamlessly without throwing error
     return false;
   }
 }

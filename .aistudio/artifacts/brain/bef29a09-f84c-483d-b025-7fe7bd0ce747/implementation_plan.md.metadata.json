@@ -1,6 +1,6 @@
 {
-  "summary": "Implementation plan to make PDF uploading and AI summarization 100% client-side in the browser, eliminating all server API dependency and error banners on static hosting (Netlify/GitHub Pages).",
-  "updatedAt": "2026-10-19T07:57:53.939607589Z",
+  "summary": "Implementation plan to fix Netlify <!DOCTYPE html> JSON parse errors by introducing a dedicated Netlify serverless function (netlify/functions/api.ts), configuring netlify.toml redirects, building a resilient API fetch helper with automatic retries, batched quiz generation (10 questions/batch) to conquer 10s serverless timeouts, client-side PDF text extraction, smart question limits, and client-side fill-in-the-blank fallback.",
+  "updatedAt": "2026-10-19T08:23:34.872126876Z",
   "requestFeedback": true,
   "userFacing": true
 }

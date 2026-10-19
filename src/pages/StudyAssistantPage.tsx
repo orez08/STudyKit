@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 import { ChatMessage, DocumentItem } from '../types';
+import { apiClient } from '../lib/apiClient';
 
 interface StudyAssistantPageProps {
   initialDocumentContext?: DocumentItem | null;
@@ -58,26 +59,16 @@ export const StudyAssistantPage: React.FC<StudyAssistantPageProps> = ({
     setIsTyping(true);
 
     try {
-      const response = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          contextText: selectedDocument?.extractedText || '',
-          documentTitle: selectedDocument?.name || '',
-          history: chatMessages.slice(-6).map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        }),
+      const res = await apiClient.post<{ success: boolean; data: any }>('/api/ai/chat', {
+        message: text,
+        contextText: selectedDocument?.extractedText || '',
+        documentTitle: selectedDocument?.name || '',
+        history: chatMessages.slice(-6).map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
       });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Failed to receive assistant reply.');
-      }
-
-      const res = await response.json();
       if (!res.data) throw new Error('Invalid format returned by AI partner.');
 
       const assistantMsg: ChatMessage = {
@@ -95,10 +86,12 @@ export const StudyAssistantPage: React.FC<StudyAssistantPageProps> = ({
       addChatMessage(assistantMsg);
     } catch (err: any) {
       console.error('Study assistant error:', err);
+      const friendlyError =
+        err.message || 'Server is busy, please retry in a few moments.';
       const errorMsg: ChatMessage = {
         id: `msg-err-${Date.now()}`,
         role: 'assistant',
-        content: `I ran into a temporary processing issue: ${err.message}. Please check your connection or try again.`,
+        content: `${friendlyError}`,
         timestamp: new Date().toISOString(),
       };
       addChatMessage(errorMsg);

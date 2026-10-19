@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 import { PracticeTestItem, PracticeTestQuestion } from '../types';
+import { apiClient } from '../lib/apiClient';
 import confetti from 'canvas-confetti';
 
 export const PracticeTestsPage: React.FC = () => {
@@ -69,26 +70,16 @@ export const PracticeTestsPage: React.FC = () => {
       const doc = documents.find((d) => d.id === selectedDocId);
       if (!doc) throw new Error('Please select a reference document.');
 
-      const res = await fetch('/api/ai/practice-test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: doc.extractedText || '',
-          title: testTitle,
-          subject,
-          numQuestions,
-          durationMinutes,
-          passingScore,
-          difficulty,
-        }),
+      const resData = await apiClient.post<{ success: boolean; data: any }>('/api/ai/practice-test', {
+        content: doc.extractedText || '',
+        title: testTitle,
+        subject,
+        numQuestions,
+        durationMinutes,
+        passingScore,
+        difficulty,
       });
 
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Failed to generate practice test.');
-      }
-
-      const resData = await res.json();
       if (!resData.success || !resData.data) throw new Error('Invalid format returned by AI service.');
 
       const examData = resData.data;

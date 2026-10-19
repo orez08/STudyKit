@@ -349,16 +349,22 @@ app.post('/api/ai/quiz', async (req: Request, res: Response) => {
       return res.status(503).json({ error: 'Gemini API key is not configured.' });
     }
 
-    const requestedCount = Number(numQuestions) || 5;
+    const batchSizeParam = Number(req.body.batchSize);
+    const batchNumber = Number(req.body.batchNumber) || 1;
+    const totalBatches = Number(req.body.totalBatches) || 1;
+    const requestedCount = batchSizeParam || Number(numQuestions) || 5;
     let allQuestions: any[] = [];
-    const batchSize = 25;
-    const numBatches = Math.ceil(requestedCount / batchSize);
+    const batchSize = batchSizeParam || Math.min(requestedCount, 10);
+    const numBatches = batchSizeParam ? 1 : Math.ceil(requestedCount / batchSize);
 
     for (let batchIndex = 0; batchIndex < numBatches; batchIndex++) {
       const currentBatchCount = Math.min(batchSize, requestedCount - allQuestions.length);
       if (currentBatchCount <= 0) break;
 
-      const prompt = `Generate batch ${batchIndex + 1} of ${numBatches} containing exactly ${currentBatchCount} high quality, academically rigorous interactive quiz questions based directly and strictly on the provided study material.
+      const currentBatchNum = batchSizeParam ? batchNumber : batchIndex + 1;
+      const totalBatchNum = batchSizeParam ? totalBatches : numBatches;
+
+      const prompt = `Generate batch ${currentBatchNum} of ${totalBatchNum} containing exactly ${currentBatchCount} high quality, academically rigorous interactive quiz questions based directly and strictly on the provided study material.
 Question Type preference: ${questionTypes}
 Difficulty: ${difficulty}
 Focus: ${focusArea}

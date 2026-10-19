@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 import { FlashcardDeck, Flashcard } from '../types';
+import { apiClient } from '../lib/apiClient';
 
 export const FlashcardsPage: React.FC = () => {
   const { documents, summaries, flashcardDecks, addFlashcardDeck, rateFlashcard, deleteFlashcardDeck } =
@@ -116,18 +117,13 @@ export const FlashcardsPage: React.FC = () => {
         title = 'Custom Flashcards';
       }
 
-      const res = await fetch('/api/ai/flashcards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, title, numCards, topic: 'Revision' }),
+      const data = await apiClient.post<{ success: boolean; data: any }>('/api/ai/flashcards', {
+        content,
+        title,
+        numCards,
+        topic: 'Revision',
       });
 
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Failed to generate flashcards.');
-      }
-
-      const data = await res.json();
       if (!data.success || !data.data) throw new Error('Invalid format returned by AI.');
 
       const newCards: Flashcard[] = data.data.cards.map((c: any, idx: number) => ({

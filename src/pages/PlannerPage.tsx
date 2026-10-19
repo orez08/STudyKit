@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 import { PlannerTask } from '../types';
+import { apiClient } from '../lib/apiClient';
 
 export const PlannerPage: React.FC = () => {
   const { plannerTasks, addPlannerTask, togglePlannerTask, deletePlannerTask } = useStudy();
@@ -81,21 +82,13 @@ export const PlannerPage: React.FC = () => {
   const handleGenerateAIPlan = async () => {
     setIsGeneratingPlan(true);
     try {
-      const res = await fetch('/api/ai/planner', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subjects: genSubjects.split(',').map((s) => s.trim()),
-          examDates: genExams.split(',').map((e) => e.trim()),
-          dailyHours: genHours,
-          preferredDays: genDays,
-          goals: genGoals,
-        }),
+      const data = await apiClient.post<{ success: boolean; data: { tasks: any[]; summary?: any } }>('/api/ai/planner', {
+        subjects: genSubjects.split(',').map((s) => s.trim()),
+        examDates: genExams.split(',').map((e) => e.trim()),
+        dailyHours: genHours,
+        preferredDays: genDays,
+        goals: genGoals,
       });
-
-      if (!res.ok) throw new Error('Failed to generate timetable.');
-
-      const data = await res.json();
       if (data.data?.tasks) {
         for (const t of data.data.tasks) {
           await addPlannerTask({
