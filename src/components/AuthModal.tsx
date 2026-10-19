@@ -19,7 +19,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [name, setName] = useState('');
+  const [surname, setSurname] = useState('');
+  const [university, setUniversity] = useState('');
+  const [matricNo, setMatricNo] = useState('');
+  const [department, setDepartment] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,8 +46,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setError(res.error || 'Invalid email or password.');
         }
       } else if (mode === 'signup') {
-        if (!displayName.trim()) {
-          setError('Please provide your full name.');
+        if (!name.trim() || !surname.trim() || !university.trim() || !matricNo.trim() || !department.trim()) {
+          setError('Please fill in all academic profile fields.');
           setIsSubmitting(false);
           return;
         }
@@ -52,7 +56,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setIsSubmitting(false);
           return;
         }
-        const res = await signUp(email, password, displayName);
+        const res = await signUp(email, password, name, surname, university, matricNo, department);
         if (res.success) {
           onSuccess?.();
           onClose();
@@ -127,20 +131,69 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === 'signup' && (
-            <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">Full Name</label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 w-4 h-4 text-neutral-500" />
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-300 mb-1">Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Alex"
+                    className="w-full bg-[#050505] border border-[#262626] rounded-lg px-3 py-2.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#D97706] transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-300 mb-1">Surname</label>
+                  <input
+                    type="text"
+                    required
+                    value={surname}
+                    onChange={(e) => setSurname(e.target.value)}
+                    placeholder="e.g. Morgan"
+                    className="w-full bg-[#050505] border border-[#262626] rounded-lg px-3 py-2.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#D97706] transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-neutral-300 mb-1">University / College Name</label>
                 <input
                   type="text"
                   required
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="e.g. Alex Morgan"
-                  className="w-full bg-[#050505] border border-[#262626] rounded-lg pl-9 pr-3 py-2.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#D97706] transition-colors"
+                  value={university}
+                  onChange={(e) => setUniversity(e.target.value)}
+                  placeholder="e.g. State University"
+                  className="w-full bg-[#050505] border border-[#262626] rounded-lg px-3 py-2.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#D97706] transition-colors"
                 />
               </div>
-            </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-300 mb-1">Matric No</label>
+                  <input
+                    type="text"
+                    required
+                    value={matricNo}
+                    onChange={(e) => setMatricNo(e.target.value)}
+                    placeholder="e.g. U/2023/1234"
+                    className="w-full bg-[#050505] border border-[#262626] rounded-lg px-3 py-2.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#D97706] transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-300 mb-1">Department</label>
+                  <input
+                    type="text"
+                    required
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    placeholder="e.g. Computer Science"
+                    className="w-full bg-[#050505] border border-[#262626] rounded-lg px-3 py-2.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#D97706] transition-colors"
+                  />
+                </div>
+              </div>
+            </>
           )}
 
           <div>
