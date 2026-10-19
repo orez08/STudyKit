@@ -86,7 +86,12 @@ app.post('/api/pdf/extract-and-process', async (req: Request, res: Response) => 
     let pageCount = 1;
     let isScanned = false;
 
-    const parsed = await parsePdfBuffer(buffer);
+    let parsed = { text: '', pageCount: 1 };
+    try {
+      parsed = await parsePdfBuffer(buffer);
+    } catch (parseErr) {
+      console.warn('parsePdfBuffer threw error, falling back to Gemini OCR:', parseErr);
+    }
     extractedText = parsed.text;
     pageCount = parsed.pageCount;
 

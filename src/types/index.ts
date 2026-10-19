@@ -205,6 +205,25 @@ export interface SharedStudyItem {
   sharedAt: string;
 }
 
+export interface StudyGroupMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  type: 'text' | 'file' | 'voice';
+  content: string;
+  fileUrl?: string;
+  fileName?: string;
+  audioUrl?: string;
+  timestamp: string;
+}
+
+export interface GroupJoinRequest {
+  uid: string;
+  displayName: string;
+  email: string;
+  requestedAt: string;
+}
+
 export interface StudyGroupItem {
   id: string;
   name: string;
@@ -212,8 +231,11 @@ export interface StudyGroupItem {
   subject: string;
   inviteCode: string;
   createdBy: string;
+  isDeactivated?: boolean;
+  pendingRequests?: GroupJoinRequest[];
   members: StudyGroupMember[];
   sharedItems: SharedStudyItem[];
+  messages?: StudyGroupMessage[];
   createdAt: string;
 }
 

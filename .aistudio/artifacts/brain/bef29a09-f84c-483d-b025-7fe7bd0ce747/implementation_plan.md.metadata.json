@@ -1,6 +1,6 @@
 {
-  "summary": "Implementation plan to add mandatory Name, Surname, University/College, Matric Number (alphanumeric), and Department fields to the user sign-up flow and persistence in Firestore.",
-  "updatedAt": "2026-10-19T03:06:26.716513752Z",
+  "summary": "Implementation plan for Study Groups: Owner Deactivation, Join Requests & Approval Queue, and Group Chat with Text, Files, and Voice Notes.",
+  "updatedAt": "2026-10-19T07:13:27.691328868Z",
   "requestFeedback": true,
   "userFacing": true
 }
