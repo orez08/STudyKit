@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 import { PracticeTestItem, PracticeTestQuestion } from '../types';
-import { apiClient } from '../lib/apiClient';
 import confetti from 'canvas-confetti';
 
 export const PracticeTestsPage: React.FC = () => {
@@ -70,16 +69,26 @@ export const PracticeTestsPage: React.FC = () => {
       const doc = documents.find((d) => d.id === selectedDocId);
       if (!doc) throw new Error('Please select a reference document.');
 
-      const resData = await apiClient.post<{ success: boolean; data: any }>('/api/ai/practice-test', {
-        content: doc.extractedText || '',
-        title: testTitle,
-        subject,
-        numQuestions,
-        durationMinutes,
-        passingScore,
-        difficulty,
+      const res = await fetch('/api/ai/practice-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: doc.extractedText || '',
+          title: testTitle,
+          subject,
+          numQuestions,
+          durationMinutes,
+          passingScore,
+          difficulty,
+        }),
       });
 
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to generate practice test.');
+      }
+
+      const resData = await res.json();
       if (!resData.success || !resData.data) throw new Error('Invalid format returned by AI service.');
 
       const examData = resData.data;
@@ -440,7 +449,7 @@ export const PracticeTestsPage: React.FC = () => {
                   const isCurrent = currentQIndex === idx;
                   return (
                     <button
-                      key={q.id || idx}
+                      key={`${q.id}-${idx}`}
                       onClick={() => setCurrentQIndex(idx)}
                       className={`h-9 rounded-lg font-mono text-xs font-bold transition-all ${
                         isCurrent
@@ -582,7 +591,7 @@ export const PracticeTestsPage: React.FC = () => {
             </h3>
             {activeTest.questions.map((q, idx) => (
               <div
-                key={q.id || idx}
+                key={`${q.id}-${idx}`}
                 className={`p-5 rounded-xl border space-y-3 ${
                   q.isCorrect
                     ? 'bg-[#1C241D] border-emerald-800/60'

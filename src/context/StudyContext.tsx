@@ -343,6 +343,10 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return { success: true };
     } catch (err: any) {
       console.error('Sign in failed:', err);
+      // Log specific error code if available
+      if (err.code) {
+        console.error('Firebase Error Code:', err.code);
+      }
       return { success: false, error: err.message || 'Invalid email or password.' };
     }
   };

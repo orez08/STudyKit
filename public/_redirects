@@ -1,4 +1,0 @@
-# Netlify redirects: API proxying to serverless functions followed by SPA fallback
-/api/*  /.netlify/functions/api/:splat  200!
-/api    /.netlify/functions/api        200!
-/*      /index.html                    200

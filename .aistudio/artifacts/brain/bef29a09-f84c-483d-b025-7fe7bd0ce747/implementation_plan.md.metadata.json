@@ -1,6 +1,6 @@
 {
-  "summary": "Implementation plan to fix Netlify <!DOCTYPE html> JSON parse errors by introducing a dedicated Netlify serverless function (netlify/functions/api.ts), configuring netlify.toml redirects, building a resilient API fetch helper with automatic retries, batched quiz generation (10 questions/batch) to conquer 10s serverless timeouts, client-side PDF text extraction, smart question limits, and client-side fill-in-the-blank fallback.",
-  "updatedAt": "2026-10-19T08:23:34.872126876Z",
+  "summary": "Implementation plan to fix Vercel deployment parity, improve summarizer, and fix quiz generator.",
+  "updatedAt": "2026-10-19T10:19:27.157441689Z",
   "requestFeedback": true,
   "userFacing": true
 }

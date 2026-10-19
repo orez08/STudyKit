@@ -225,7 +225,7 @@ app.post('/api/ai/summarize', async (req: Request, res: Response) => {
     }
 
     const systemPrompt = `You are Study Kit's expert academic research analyst and tutor.
-Your job is to read and analyze this learning material thoroughly, and output an exhaustive, structured educational summary in valid JSON format only.
+Your job is to read and analyze this learning material exhaustively, and output a highly detailed, structured, comprehensive educational summary in valid JSON format only. Do not omit any crucial sub-sections, formulas, definitions, or complex arguments. Provide depth for every section.
 
 Options:
 - Summary Length: ${length}
@@ -234,15 +234,15 @@ Options:
 - Language: ${language}
 
 Strict requirements:
-1. Document Overview: title, subject, estimated page count / sections, short 2-3 sentence overview.
-2. Executive Summary: concise high-level synthesis of core argument/findings.
-3. Chapter/Section Summaries: break down each identifiable section or chapter with title, mainIdea, keyPoints (array of strings), examples (array of strings), and conclusion.
-4. Key Points: 5 to 10 crucial bullet points with exact page or section citations if present in source (e.g. "(Page 4)" or "(Section 2)"). Never invent page numbers.
-5. Important Definitions: list of terms with clear definition and page references.
-6. Important Formulas: mathematical or scientific formulas with formula, what it is used for, variable definitions, and units. If none present in source, return empty array [].
+1. Document Overview: title, subject, estimated page count / sections, comprehensive overview (3-5 sentences).
+2. Executive Summary: detailed high-level synthesis of all core arguments, methodologies, and findings.
+3. Chapter/Section Summaries: extremely detailed breakdown of every identifiable section or chapter with title, mainIdea, keyPoints (detailed array of strings), examples (detailed array of strings), and conclusion.
+4. Key Points: 10 to 20 crucial bullet points with exact page or section citations if present in source (e.g. "(Page 4)" or "(Section 2)"). Never invent page numbers.
+5. Important Definitions: exhaustive list of all technical terms with clear, detailed definition and page references.
+6. Important Formulas: mathematical or scientific formulas with formula, detailed description of its usage, variable definitions, and units. If none present in source, return empty array [].
 7. Important Dates, Names, and Facts: key historical/scientific dates, people, and findings. If none, return empty array [].
-8. Key Takeaways: 4 to 6 memorable insights.
-9. Revision Checklist: list of 5 to 8 concrete review check items.
+8. Key Takeaways: 8 to 12 memorable, insightful takeaways.
+9. Revision Checklist: list of 10 to 15 concrete review check items.
 
 Return strictly a JSON object with this shape:
 {
@@ -349,22 +349,16 @@ app.post('/api/ai/quiz', async (req: Request, res: Response) => {
       return res.status(503).json({ error: 'Gemini API key is not configured.' });
     }
 
-    const batchSizeParam = Number(req.body.batchSize);
-    const batchNumber = Number(req.body.batchNumber) || 1;
-    const totalBatches = Number(req.body.totalBatches) || 1;
-    const requestedCount = batchSizeParam || Number(numQuestions) || 5;
+    const requestedCount = Number(numQuestions) || 5;
     let allQuestions: any[] = [];
-    const batchSize = batchSizeParam || Math.min(requestedCount, 10);
-    const numBatches = batchSizeParam ? 1 : Math.ceil(requestedCount / batchSize);
+    const batchSize = 25;
+    const numBatches = Math.ceil(requestedCount / batchSize);
 
     for (let batchIndex = 0; batchIndex < numBatches; batchIndex++) {
       const currentBatchCount = Math.min(batchSize, requestedCount - allQuestions.length);
       if (currentBatchCount <= 0) break;
 
-      const currentBatchNum = batchSizeParam ? batchNumber : batchIndex + 1;
-      const totalBatchNum = batchSizeParam ? totalBatches : numBatches;
-
-      const prompt = `Generate batch ${currentBatchNum} of ${totalBatchNum} containing exactly ${currentBatchCount} high quality, academically rigorous interactive quiz questions based directly and strictly on the provided study material.
+      const prompt = `Generate batch ${batchIndex + 1} of ${numBatches} containing exactly ${currentBatchCount} high quality, academically rigorous interactive quiz questions based directly and strictly on the provided study material.
 Question Type preference: ${questionTypes}
 Difficulty: ${difficulty}
 Focus: ${focusArea}
