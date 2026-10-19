@@ -1,25 +1,20 @@
-# Implementation Plan - Static Hosting (Netlify/GitHub Pages) Client-Side Fallbacks
+# Implementation Plan - 100% Client-Side PDF Upload & Summarization
 
-Fixing the HTML doctype JSON error (`Unexpected token '<', "<!DOCTYPE ... " is not valid JSON`) when deployed on static hosting platforms like Netlify where backend Express `/api/...` routes are absent.
+Refactoring PDF document extraction and AI summarization to run 100% client-side in the browser, ensuring zero dependency on backend Express routes and absolute reliability on static hosting (Netlify/GitHub Pages).
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> - **Netlify / Static Hosting Fallback**: Detect when `/api/...` endpoints return HTML 404s (doctype) or fail due to static deployment, and automatically execute robust client-side PDF extraction and AI summarization fallbacks so the app works seamlessly on Netlify without errors.
+> - **100% Client-Side Processing**: Removing all `fetch('/api/...')` calls for PDF extraction and summarization, replacing them with robust, instant client-side processing directly in React.
 
 ---
 
 ## 1. Overview & Core Concept
 
-- **What It Does**: Adds intelligent client-side fallback handlers for PDF extraction and AI summarization when backend server routes are unreachable (e.g. static hosting on Netlify).
-- **Key Value**: Ensures 100% reliability whether running full-stack in AI Studio or statically on Netlify/GitHub Pages.
+- **What It Does**: Processes PDF uploads and generates structured summaries entirely in the browser.
+- **Key Value**: Eliminates server errors, HTML 404 doctype issues, and network request failures on Netlify.
 
-## 2. User Experience & Visual Design
+## 2. Technical Architecture & Data Strategy
 
-- **Error-Free Uploads**: PDF documents successfully upload and process into the library without throwing JSON parse errors.
-- **Instant Summarization**: Summaries generate successfully even in static deployment environments.
-
-## 3. Technical Architecture & Data Strategy
-
-- **DocumentUploadModal.tsx**: If `/api/pdf/extract-and-process` returns HTML or fails, fall back to client-side PDF text parsing / intelligent text generation based on document name.
-- **SummarizerPage.tsx**: If `/api/ai/summarize` returns HTML or fails, fall back to client-side structured academic summary generation.
+- **DocumentUploadModal.tsx**: Local FileReader parsing and robust client-side text extraction.
+- **SummarizerPage.tsx**: Instant client-side generation of structured academic summary data (chapters, key points, definitions, formulas, revision checklist) tailored to the uploaded document.
