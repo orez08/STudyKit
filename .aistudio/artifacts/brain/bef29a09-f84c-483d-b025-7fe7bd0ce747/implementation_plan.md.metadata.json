@@ -1,6 +1,6 @@
 {
-  "summary": "Implementation plan to fix Vercel deployment parity, improve summarizer, and fix quiz generator.",
-  "updatedAt": "2026-10-19T10:19:27.157441689Z",
+  "summary": "Implementation plan to diagnose and fix the Firebase Email/Password sign-in error on the published website.",
+  "updatedAt": "2026-10-19T13:05:08.606734107Z",
   "requestFeedback": true,
   "userFacing": true
 }
