@@ -381,17 +381,17 @@ export const PracticeTestsPage: React.FC = () => {
                       onClick={() => handleAnswerSelect(currentQ.id, opt)}
                       className={`w-full p-4 rounded-xl text-left text-xs transition-all flex items-center justify-between border ${
                         isSelected
-                          ? 'bg-[#292929] border-[#F2C230] text-white shadow-sm'
+                          ? 'bg-[#292929] border-[#F2C230] text-white shadow-sm quiz-option-selected'
                           : 'bg-[#181818] border-[#2B2B2B] text-neutral-300 hover:bg-[#222222]'
                       }`}
                     >
                       <span>{opt}</span>
                       <div
                         className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
-                          isSelected ? 'border-[#F2C230] bg-[#F2C230]' : 'border-neutral-500'
+                          isSelected ? 'border-white bg-black' : 'border-neutral-500'
                         }`}
                       >
-                        {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
+                        {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                       </div>
                     </button>
                   );

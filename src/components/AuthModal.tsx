@@ -86,7 +86,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-md bg-[#0A0A0A] border border-[#222222] rounded-2xl p-6 sm:p-8 shadow-2xl">
+      <div className="relative w-full max-w-md bg-[#0A0A0A] border border-[#222222] rounded-2xl p-6 sm:p-8 shadow-2xl animate-modal-pop">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -97,8 +97,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </button>
 
         {/* Modal Header */}
-        <div className="text-center mb-6">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#F59E0B] via-[#D97706] to-[#EA580C] text-white font-extrabold flex items-center justify-center mx-auto mb-3 shadow-md shadow-[#D97706]/20">
+        <div className="text-center mb-6 animate-stagger-1">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#F59E0B] via-[#D97706] to-[#EA580C] text-white font-extrabold flex items-center justify-center mx-auto mb-3 shadow-md shadow-[#D97706]/20 animate-soft-pulse">
             <BookOpen className="w-6 h-6 text-white" />
           </div>
           <h3 className="text-xl font-semibold text-white font-['Clash_Display']">
@@ -245,7 +245,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-2.5 px-4 bg-gradient-to-r from-[#D97706] to-[#EA580C] hover:from-[#B45309] hover:to-[#C2410C] text-white font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm shadow-[#D97706]/20 disabled:opacity-50 cursor-pointer"
+            className="w-full py-2.5 px-4 bg-gradient-to-r from-[#D97706] to-[#EA580C] hover:from-[#B45309] hover:to-[#C2410C] text-white font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm shadow-[#D97706]/20 disabled:opacity-50 cursor-pointer card-hover-lift"
           >
             {isSubmitting ? (
               <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -267,7 +267,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="button"
             onClick={handleDemoClick}
-            className="w-full py-2 px-3 bg-[#121212] hover:bg-[#1A1A1A] text-neutral-200 border border-[#242424] text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-2 group cursor-pointer"
+            className="w-full py-2 px-3 bg-[#121212] hover:bg-[#1A1A1A] text-neutral-200 border border-[#242424] text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-2 group cursor-pointer card-hover-lift"
           >
             <Sparkles className="w-3.5 h-3.5 text-[#FDE047] group-hover:scale-110 transition-transform" />
             <span>Continue with Student Demo Account (Instant Access)</span>

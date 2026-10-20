@@ -101,13 +101,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setCurrentView, openAu
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
           {/* Trust badge with light yellow and darker amber accent */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0C0C0C] border border-[#262626] text-xs text-neutral-300 mb-6 shadow-sm">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0C0C0C] border border-[#262626] text-xs text-neutral-300 mb-6 shadow-sm animate-soft-pulse">
             <Sparkles className="w-3.5 h-3.5 text-[#FDE047]" />
             <span className="text-[#FDE047] font-medium">Intelligent AI Educational Workspace</span>
           </div>
 
           {/* Main Headline in Clash Display Semi Bold */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-semibold tracking-tight text-white font-['Clash_Display'] max-w-4xl mx-auto leading-[1.1]">
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-semibold tracking-tight text-white font-['Clash_Display'] max-w-4xl mx-auto leading-[1.1] animate-stagger-1">
             Study Smarter.{' '}
             <span className="bg-gradient-to-r from-[#FDE047] via-[#D97706] to-[#EA580C] bg-clip-text text-transparent">
               Understand Faster.
@@ -115,22 +115,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setCurrentView, openAu
           </h1>
 
           {/* Supporting Text */}
-          <p className="mt-6 text-base sm:text-lg text-neutral-300 max-w-2xl mx-auto leading-relaxed">
+          <p className="mt-6 text-base sm:text-lg text-neutral-300 max-w-2xl mx-auto leading-relaxed animate-stagger-2">
             Turn your PDFs, lecture notes, and study materials into clear summaries, AI-generated quizzes, flashcards, and personalised learning experiences — all in one deep-focus workspace.
           </p>
 
           {/* CTA Buttons in Darker Gold & Orange Shades */}
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 animate-stagger-3">
             <button
               onClick={handleStartStudying}
-              className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-[#D97706] to-[#EA580C] hover:from-[#B45309] hover:to-[#C2410C] text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-[#D97706]/25 flex items-center justify-center gap-2 group cursor-pointer"
+              className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-[#D97706] to-[#EA580C] hover:from-[#B45309] hover:to-[#C2410C] text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-[#D97706]/25 flex items-center justify-center gap-2 group cursor-pointer card-hover-lift"
             >
               <span>Start Studying Free</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
             <button
               onClick={() => setCurrentView('features')}
-              className="w-full sm:w-auto px-7 py-3.5 bg-[#0D0D0D] hover:bg-[#161616] text-neutral-200 border border-[#222222] text-sm font-semibold rounded-xl transition-all cursor-pointer"
+              className="w-full sm:w-auto px-7 py-3.5 bg-[#0D0D0D] hover:bg-[#161616] text-neutral-200 border border-[#222222] text-sm font-semibold rounded-xl transition-all cursor-pointer card-hover-lift"
             >
               Explore Features
             </button>
@@ -148,12 +148,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setCurrentView, openAu
           </div>
 
           {/* Trust message */}
-          <p className="mt-4 text-xs text-neutral-400">
+          <p className="mt-4 text-xs text-neutral-400 animate-stagger-3">
             Your learning materials, organised in one deep-black distraction-free workspace.
           </p>
 
           {/* HERO VISUAL: Deep Black Polished Product Preview */}
-          <div className="mt-14 max-w-5xl mx-auto bg-[#080808] border border-[#222222] rounded-2xl p-4 sm:p-6 shadow-2xl text-left">
+          <div className="mt-14 max-w-5xl mx-auto bg-[#080808] border border-[#222222] rounded-2xl p-4 sm:p-6 shadow-2xl text-left animate-stagger-4 card-hover-lift">
             {/* Window bar */}
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#1C1C1C]">
               <div className="flex items-center gap-2">
@@ -180,7 +180,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setCurrentView, openAu
                     <span className="font-semibold text-white font-['Clash_Display']">Executive Summary</span>
                     <span className="text-[#FDE047] bg-[#D97706]/20 px-2 py-0.5 rounded border border-[#D97706]/40 font-mono text-[11px]">Academic Notes</span>
                   </div>
-                  <p className="text-xs text-neutral-300 leading-relaxed">
+                  <p className="text-xs text-white leading-relaxed">
                     Photosynthesis transforms electromagnetic solar radiation into stable organic carbon bonds through two coupled stages: the thylakoid light-dependent electron cascade yielding ATP and NADPH, and the stromatic Calvin-Benson cycle fixing atmospheric CO2 via RuBisCO. (Page 7)
                   </p>
                 </div>
@@ -197,7 +197,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setCurrentView, openAu
               <div className="lg:col-span-5 space-y-4">
                 {/* Generated Quiz Card */}
                 <div className="p-4 rounded-xl bg-[#0F0F0F] border border-[#222222]">
-                  <div className="flex items-center justify-between text-[11px] text-neutral-400 mb-1">
+                  <div className="flex items-center justify-between text-[11px] text-neutral-300 mb-1">
                     <span>Generated Quiz Question</span>
                     <span className="text-[#FDE047] font-mono font-semibold">Q1 of 5</span>
                   </div>
@@ -205,7 +205,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setCurrentView, openAu
                     Which enzyme catalyzes the primary carbon fixation reaction in the Calvin Cycle?
                   </p>
                   <div className="space-y-1.5 text-[11px]">
-                    <div className="p-2 rounded bg-[#0A0A0A] border border-[#222222] text-neutral-300">
+                    <div className="p-2 rounded bg-[#0A0A0A] border border-[#222222] text-white">
                       A. ATP Synthase
                     </div>
                     <div className="p-2 rounded bg-[#D97706]/15 border border-[#D97706] text-white font-medium flex items-center justify-between">
@@ -218,7 +218,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setCurrentView, openAu
                 {/* Progress bar */}
                 <div className="p-3.5 rounded-xl bg-[#0F0F0F] border border-[#222222] flex items-center justify-between">
                   <div>
-                    <p className="text-[11px] text-neutral-400">Weekly Mastery Goal</p>
+                    <p className="text-[11px] text-neutral-300">Weekly Mastery Goal</p>
                     <p className="text-xs font-semibold text-white font-mono">4 / 5 Quizzes Completed</p>
                   </div>
                   <div className="w-24 h-2 bg-[#000000] rounded-full overflow-hidden border border-[#222222]">
@@ -252,7 +252,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setCurrentView, openAu
               <div
                 key={idx}
                 onClick={() => setCurrentView(feat.view)}
-                className="p-6 rounded-2xl bg-[#0A0A0A] border border-[#1F1F1F] hover:border-[#D97706]/60 transition-all cursor-pointer group flex flex-col justify-between"
+                className="p-6 rounded-2xl bg-[#0A0A0A] border border-[#1F1F1F] hover:border-[#D97706]/60 transition-all cursor-pointer group flex flex-col justify-between card-hover-lift"
               >
                 <div>
                   <div className="w-10 h-10 rounded-xl bg-[#121212] border border-[#262626] flex items-center justify-center text-[#FDE047] mb-4 group-hover:scale-105 transition-transform group-hover:text-[#D97706]">
@@ -291,7 +291,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setCurrentView, openAu
             {steps.map((st, idx) => (
               <div
                 key={idx}
-                className="p-6 rounded-2xl bg-[#0A0A0A] border border-[#1F1F1F] relative"
+                className="p-6 rounded-2xl bg-[#0A0A0A] border border-[#1F1F1F] relative card-hover-lift"
               >
                 <span className="text-3xl font-semibold bg-gradient-to-r from-[#FDE047] to-[#D97706] bg-clip-text text-transparent font-['Clash_Display'] block mb-3">
                   {st.number}
@@ -310,21 +310,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setCurrentView, openAu
 
       {/* FINAL CALL TO ACTION */}
       <section className="py-20 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <div className="p-8 sm:p-14 rounded-3xl bg-gradient-to-b from-[#0F0F0F] to-[#050505] border border-[#222222] shadow-2xl relative overflow-hidden">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#F59E0B] via-[#D97706] to-[#EA580C] text-white font-extrabold flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[#D97706]/30">
+        <div className="p-8 sm:p-14 rounded-3xl bg-gradient-to-b from-[#0F0F0F] to-[#050505] border border-[#222222] shadow-2xl relative overflow-hidden card-hover-lift">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#F59E0B] via-[#D97706] to-[#EA580C] text-white font-extrabold flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[#D97706]/30 animate-soft-pulse">
             <BookOpen className="w-7 h-7 text-white" />
           </div>
           <h2 className="text-3xl sm:text-5xl font-semibold text-white font-['Clash_Display'] tracking-tight">
             Everything You Need to Study Better.
           </h2>
-          <p className="mt-4 text-sm sm:text-base text-neutral-300 max-w-xl mx-auto leading-relaxed">
+          <p className="mt-4 text-sm sm:text-base text-white max-w-xl mx-auto leading-relaxed">
             Join thousands of university and high school students who save hours every week while boosting their test scores and understanding.
           </p>
 
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               onClick={handleStartStudying}
-              className="px-8 py-3.5 bg-gradient-to-r from-[#D97706] to-[#EA580C] hover:from-[#B45309] hover:to-[#C2410C] text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-[#D97706]/25 flex items-center gap-2 cursor-pointer"
+              className="px-8 py-3.5 bg-gradient-to-r from-[#D97706] to-[#EA580C] hover:from-[#B45309] hover:to-[#C2410C] text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-[#D97706]/25 flex items-center gap-2 cursor-pointer card-hover-lift"
             >
               <span>Build Your Study Kit</span>
               <ArrowRight className="w-4 h-4" />

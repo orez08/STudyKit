@@ -1,6 +1,6 @@
 {
-  "summary": "Implementation plan to diagnose and fix the Firebase Email/Password sign-in error on the published website.",
-  "updatedAt": "2026-10-19T13:05:08.606734107Z",
+  "summary": "Implementation plan to:\n1. Clear all default sample PDFs, documents, summaries, quizzes, flashcards, and practice tests in sampleData.ts and StudyContext so all new accounts start completely fresh and empty.\n2. Add subtle stagger fade-in entrance animations and gentle hover lift micro-interactions to the Dashboard cards and quick action tiles.\n3. Prepare the codebase for publishing with clean production empty states.",
+  "updatedAt": "2026-10-20T08:15:11.785109276Z",
   "requestFeedback": true,
   "userFacing": true
 }

@@ -11,9 +11,9 @@ import {
   Loader2,
   BookOpen,
 } from 'lucide-react';
-import { useStudy } from '../context/StudyContext';
-import { DocumentItem } from '../types';
-import { extractTextFromPdf } from '../lib/pdfClient';
+import { useStudy } from '@/context/StudyContext';
+import { DocumentItem } from '@/types';
+import { extractTextFromPdf } from '@/lib/pdfClient';
 
 interface DocumentUploadModalProps {
   isOpen: boolean;

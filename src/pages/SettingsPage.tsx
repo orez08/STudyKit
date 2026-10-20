@@ -222,12 +222,32 @@ export const SettingsPage: React.FC = () => {
           <span className="text-xs text-neutral-400">Account Session</span>
           <button
             onClick={() => signOut()}
-            className="px-4 py-2 bg-[#262626] hover:bg-red-950/60 hover:text-red-300 text-neutral-300 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+            className="px-4 py-2 bg-red-950/60 hover:bg-red-900 text-red-300 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
           >
-            <LogOut className="w-3.5 h-3.5" />
+            <LogOut className="w-3.5 h-3.5 text-red-400" />
             <span>Sign Out</span>
           </button>
         </div>
+      </div>
+
+      {/* 4. Session & Sign Out Card */}
+      <div className="p-6 rounded-2xl bg-[#1C1C1C] border border-red-900/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-red-950/50 border border-red-900/60 flex items-center justify-center text-red-400 shrink-0">
+            <LogOut className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-white">Sign Out of Account</h2>
+            <p className="text-xs text-neutral-400 mt-0.5">End your active session securely on this device.</p>
+          </div>
+        </div>
+        <button
+          onClick={() => signOut()}
+          className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer shrink-0"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Sign Out Now</span>
+        </button>
       </div>
     </div>
   );

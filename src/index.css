@@ -67,7 +67,92 @@
   body.theme-light textarea {
     background-color: #F9FAFB !important;
     color: #000000 !important;
-    border: 1px solid #B45309 !important;
+    border: none !important;
+    outline: none !important;
+  }
+
+  body.theme-light [class*="bg-[#0A0A0A]"],
+  body.theme-light [class*="bg-[#121212]"],
+  body.theme-light [class*="bg-[#050505]"],
+  body.theme-light [class*="bg-[#1C1C1C]"],
+  body.theme-light [class*="bg-[#141414]"],
+  body.theme-light div[class*="bg-gradient"],
+  body.theme-light div[class*="from-"],
+  body.theme-light div[class*="to-"],
+  body.theme-light [class*="border"],
+  body.theme-light [class*="divide-"] {
+    background: #FFFFFF !important;
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+    border: none !important;
+    border-width: 0 !important;
+    border-color: transparent !important;
+    outline: none !important;
+  }
+
+  body.theme-light div[class*="bg-gradient"] h2,
+  body.theme-light div[class*="bg-gradient"] p,
+  body.theme-light div[class*="bg-gradient"] span,
+  body.theme-light div[class*="from-"] h2,
+  body.theme-light div[class*="from-"] p,
+  body.theme-light div[class*="from-"] span {
+    color: #000000 !important;
+  }
+
+  body.theme-light input[type="radio"],
+  body.theme-light input[type="checkbox"],
+  body.theme-light [role="radio"],
+  body.theme-light [role="checkbox"],
+  body.theme-light .rounded-full,
+  body.theme-light div[class*="rounded-full"],
+  body.theme-light span[class*="rounded-full"] {
+    background-color: #000000 !important;
+    border: none !important;
+    border-color: transparent !important;
+    color: #000000 !important;
+  }
+
+  body.theme-light .quiz-option-selected,
+  body.theme-light button.quiz-option-selected {
+    background-color: #000000 !important;
+    color: #FFFFFF !important;
+    border: none !important;
+  }
+  body.theme-light .quiz-option-selected span,
+  body.theme-light .quiz-option-selected div {
+    color: #FFFFFF !important;
+    background-color: #000000 !important;
+  }
+
+  /* Streak Activity Chart in High Contrast Mode */
+  body.theme-light .streak-chart-container {
+    background-color: #F9FAFB !important;
+    border: none !important;
+  }
+
+  body.theme-light .streak-bar-track {
+    background-color: #E5E7EB !important;
+    border: none !important;
+  }
+
+  body.theme-light .streak-bar-active,
+  body.theme-light div.streak-bar-active {
+    background-color: #000000 !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  body.theme-light .streak-bar-inactive,
+  body.theme-light div.streak-bar-inactive {
+    background-color: #D1D5DB !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  body.theme-light .streak-day-label {
+    color: #000000 !important;
   }
 
   body.theme-light .text-white,
@@ -154,4 +239,95 @@
   background: linear-gradient(135deg, rgba(217, 119, 6, 0.15) 0%, rgba(234, 88, 12, 0.12) 100%);
   border: 1px solid rgba(217, 119, 6, 0.35);
   color: #D97706;
+}
+
+/* Performance & Snappy Transitions (<150ms) */
+button, a, input, select, textarea, [role="button"], .transition-all {
+  transition-duration: 120ms !important;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* GPU Acceleration for smooth, jitter-free interaction */
+button, [role="button"], .card, [class*="modal"], [class*="drawer"] {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Rendering containment for long list views */
+.contain-content {
+  content-visibility: auto;
+  contain-intrinsic-size: 80px 250px;
+}
+
+/* Dashboard Animations: Stagger Entrance & Gentle Hover Lift */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-stagger-1 {
+  animation: fadeInUp 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-stagger-2 {
+  animation: fadeInUp 280ms cubic-bezier(0.16, 1, 0.3, 1) 60ms both;
+}
+
+.animate-stagger-3 {
+  animation: fadeInUp 280ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both;
+}
+
+.animate-stagger-4 {
+  animation: fadeInUp 280ms cubic-bezier(0.16, 1, 0.3, 1) 180ms both;
+}
+
+.animate-stagger-5 {
+  animation: fadeInUp 280ms cubic-bezier(0.16, 1, 0.3, 1) 240ms both;
+}
+
+.card-hover-lift {
+  transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 140ms cubic-bezier(0.16, 1, 0.3, 1), border-color 140ms ease !important;
+}
+
+.card-hover-lift:hover {
+  transform: translateY(-3px) translateZ(0) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Modal Pop & Sign Up Dialog Animations */
+@keyframes modalPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-modal-pop {
+  animation: modalPop 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Soft Shimmer & Pulse Accent */
+@keyframes softPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.35);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 18px 3px rgba(217, 119, 6, 0.3);
+  }
+}
+
+.animate-soft-pulse {
+  animation: softPulse 2.8s ease-in-out infinite;
 }

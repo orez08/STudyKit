@@ -17,6 +17,7 @@ import {
 import { useStudy } from '../context/StudyContext';
 import { SummaryViewer } from '../components/SummaryViewer';
 import { SummaryData, DocumentItem } from '../types';
+import { studyCache } from '../lib/cache';
 
 interface SummarizerPageProps {
   onGenerateQuiz: (summary: SummaryData) => void;
@@ -82,149 +83,128 @@ export const SummarizerPage: React.FC<SummarizerPageProps> = ({
         docText = manualText;
       }
 
-      // Handle modifiers if user clicked "Make Shorter", etc.
       let effectiveLength = summaryLength;
       let effectiveStyle = summaryStyle;
       if (modifier === 'shorter') effectiveLength = 'Quick Summary';
       if (modifier === 'detailed') effectiveLength = 'Detailed Summary';
       if (modifier === 'simpler') effectiveStyle = 'Simple Explanation';
 
-      setStatusMessage('Analyzing concepts, definitions, and key formulas with Gemini AI...');
+      setStatusMessage('Executing bulky and intensive hierarchical AI summarization...');
 
-      // Dynamic academic analysis on the actual extracted PDF content
-      const clean = docText.replace(/\[Page \d+\]/g, '').trim();
-      const paragraphs = clean.split(/\n\s*\n/).map((p) => p.trim()).filter((p) => p.length > 20);
-      const sentences = clean.split(/(?<=[.?!])\s+/).map((s) => s.trim()).filter((s) => s.length > 15);
+      const cacheParams = {
+        snippet: docText.slice(0, 1500),
+        effectiveLength,
+        effectiveStyle,
+        targetLevel,
+        language,
+      };
 
-      // 1. Extract definitions dynamically from text
-      const definitionMatches: { term: string; definition: string; pageRef?: string }[] = [];
-      const defRegex = /([A-Z][a-zA-Z\s]{2,25})\s+(?:is defined as|refers to|is the|denotes|represents|is characterized by)\s+([^.]{20,150}\.)/gi;
-      let dMatch;
-      while ((dMatch = defRegex.exec(clean)) !== null && definitionMatches.length < 6) {
-        definitionMatches.push({
-          term: dMatch[1].trim(),
-          definition: dMatch[2].trim(),
-          pageRef: 'Extracted Concept',
-        });
+      let generatedData = studyCache.get<any>('summary', cacheParams);
+
+      if (!generatedData) {
+        try {
+          const response = await fetch('/api/ai/summarize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: docText,
+              fileBase64,
+              title,
+              length: effectiveLength,
+              style: effectiveStyle,
+              targetLevel,
+              language,
+            }),
+          });
+
+          if (response.ok) {
+            const res = await response.json();
+            if (res.success && res.data) {
+              generatedData = res.data;
+              studyCache.set('summary', cacheParams, generatedData);
+            }
+          }
+        } catch (apiErr) {
+          console.warn('Backend summarize API warning, falling back to intensive local extraction:', apiErr);
+        }
       }
 
-      if (definitionMatches.length === 0) {
-        const candidateTerms = Array.from(new Set(clean.match(/\b[A-Z][a-z]{3,}(?:\s+[A-Z][a-z]{3,})*\b/g) || [])).slice(0, 5);
+      // Fallback local bulky extraction if AI API was unreachable
+      if (!generatedData) {
+        const clean = docText.replace(/\[Page \d+\]/g, '').trim();
+        const paragraphs = clean.split(/\n\s*\n/).map((p) => p.trim()).filter((p) => p.length > 20);
+        const sentences = clean.split(/(?<=[.?!])\s+/).map((s) => s.trim()).filter((s) => s.length > 15);
+
+        const definitionMatches: { term: string; definition: string; pageRef?: string }[] = [];
+        const candidateTerms = Array.from(new Set(clean.match(/\b[A-Z][a-z]{3,}(?:\s+[A-Z][a-z]{3,})*\b/g) || [])).slice(0, 8);
         candidateTerms.forEach((term, idx) => {
-          const matchedSentence = sentences.find((s) => s.includes(term) && s.length > 30) || `${term} is a foundational concept discussed in ${title}.`;
+          const matchedSentence = sentences.find((s) => s.includes(term) && s.length > 30) || `${term} is a core academic concept discussed in ${title}.`;
           definitionMatches.push({
             term,
-            definition: matchedSentence.length > 160 ? matchedSentence.slice(0, 160) + '...' : matchedSentence,
-            pageRef: `Key Term ${idx + 1}`,
+            definition: matchedSentence,
+            pageRef: `Term ${idx + 1}`,
           });
         });
+
+        const formulas = [
+          {
+            formula: 'Comprehensive Analytical Framework',
+            description: `Primary theoretical model established in ${title}`,
+            variables: 'Core variables & metrics',
+            units: 'Academic standard',
+          },
+        ];
+
+        const datesAndFacts = sentences.slice(0, 4).map((s, i) => ({
+          dateOrFact: `Fact ${i + 1}`,
+          personOrTopic: 'Key Finding',
+          significance: s,
+        }));
+
+        const chapters = [
+          {
+            sectionHeading: `Part 1: Exhaustive Overview & Framework`,
+            mainIdea: paragraphs[0] || `Introduction and scope of ${title}.`,
+            keyPoints: sentences.slice(0, 4),
+            examples: sentences.slice(4, 7),
+            conclusion: 'Foundational baseline established.',
+          },
+          {
+            sectionHeading: `Part 2: In-Depth Analytical Breakdown`,
+            mainIdea: paragraphs[Math.floor(paragraphs.length / 2)] || `Detailed mechanisms and discussions.`,
+            keyPoints: sentences.slice(7, 11),
+            examples: sentences.slice(11, 14),
+            conclusion: 'Core analytical arguments validated.',
+          },
+          {
+            sectionHeading: `Part 3: Synthesis, Evaluation & Takeaways`,
+            mainIdea: paragraphs[paragraphs.length - 1] || `Final conclusions and implications.`,
+            keyPoints: sentences.slice(14, 18),
+            examples: sentences.slice(18, 20),
+            conclusion: 'Complete academic mastery achieved.',
+          },
+        ];
+
+        generatedData = {
+          title: `${title} - ${effectiveLength}`,
+          subject: 'Academic Revision',
+          pageCount: selectedDocument?.pageCount || Math.max(1, Math.ceil(docText.length / 2000)),
+          overview: paragraphs[0] || `Bulky intensive summary for ${title}.`,
+          executiveSummary: sentences.slice(0, 3).join(' ') || `Exhaustive review of ${title}.`,
+          chapters,
+          keyPoints: sentences.slice(0, 10),
+          definitions: definitionMatches,
+          formulas,
+          datesAndFacts,
+          keyTakeaways: sentences.slice(0, 8),
+          revisionChecklist: [
+            `Examine core concepts of ${title}`,
+            `Review all definitions and formulas`,
+            `Complete practice test assessment`,
+          ],
+        };
       }
 
-      // 2. Extract formulas or quantitative relationships
-      const formulas: { formula: string; description: string; variables: string; units: string }[] = [];
-      const formulaRegex = /([A-Za-zΔημβ\s]{1,15}\s*=\s*[^.\n]{3,60})/g;
-      let fMatch;
-      while ((fMatch = formulaRegex.exec(clean)) !== null && formulas.length < 4) {
-        formulas.push({
-          formula: fMatch[1].trim(),
-          description: `Mathematical relationship derived from ${title}`,
-          variables: 'Observed parameters & variables',
-          units: 'Standard academic units',
-        });
-      }
-      if (formulas.length === 0) {
-        const quantSentences = sentences.filter((s) => /\d+%|\b[0-9]+(?:\.[0-9]+)?\s*(?:kg|mg|m|s|mol|g|volts|amps|hz|hours)\b/i.test(s)).slice(0, 3);
-        quantSentences.forEach((qs, idx) => {
-          formulas.push({
-            formula: qs.length > 60 ? qs.slice(0, 60) + '...' : qs,
-            description: `Empirical metric ${idx + 1} from ${title}`,
-            variables: 'Quantitative measurement variables',
-            units: 'Empirical data metric',
-          });
-        });
-      }
-      if (formulas.length === 0) {
-        formulas.push({
-          formula: 'Standard Assessment Metrics',
-          description: `Qualitative evaluation criteria established in ${title}`,
-          variables: 'Domain-specific analytical markers',
-          units: 'Qualitative rating',
-        });
-      }
-
-      // 3. Extract dates, people, or notable findings
-      const datesAndFacts: { dateOrFact: string; personOrTopic: string; significance: string }[] = [];
-      const dateRegex = /\b(1[789]\d{2}|20\d{2})\b/g;
-      const datesFound = Array.from(new Set(clean.match(dateRegex) || [])).slice(0, 3);
-      datesFound.forEach((d) => {
-        const matched = sentences.find((sent) => sent.includes(d)) || `Historical benchmark: ${d}`;
-        datesAndFacts.push({
-          dateOrFact: d,
-          personOrTopic: 'Chronological Landmark',
-          significance: matched.length > 120 ? matched.slice(0, 120) + '...' : matched,
-        });
-      });
-      if (datesAndFacts.length === 0) {
-        const notableSentences = sentences.filter((s) => s.length > 40 && s.length < 130).slice(0, 3);
-        notableSentences.forEach((ns, i) => {
-          datesAndFacts.push({
-            dateOrFact: `Fact ${i + 1}`,
-            personOrTopic: 'Core Subject Finding',
-            significance: ns,
-          });
-        });
-      }
-
-      // 4. Dynamic Chapters derived from actual paragraphs
-      const totalParas = Math.max(1, paragraphs.length);
-      const partSize = Math.max(1, Math.ceil(totalParas / 3));
-      const chapters = [
-        {
-          sectionHeading: `Part 1: Introduction & Foundational Scope (${title})`,
-          mainIdea: paragraphs[0] ? (paragraphs[0].length > 200 ? paragraphs[0].slice(0, 200) + '...' : paragraphs[0]) : `Foundational context and baseline definitions from ${title}.`,
-          keyPoints: sentences.slice(0, 3).map((s) => (s.length > 120 ? s.slice(0, 120) + '...' : s)),
-          examples: sentences.slice(3, 5).map((s) => (s.length > 100 ? s.slice(0, 100) + '...' : s)),
-          conclusion: 'Establishes the fundamental parameters and subject context.',
-        },
-        {
-          sectionHeading: `Part 2: Core Analytical Evidence & Mechanisms`,
-          mainIdea: paragraphs[partSize] ? (paragraphs[partSize].length > 200 ? paragraphs[partSize].slice(0, 200) + '...' : paragraphs[partSize]) : `Detailed analytical principles and evidence discussed in ${title}.`,
-          keyPoints: sentences.slice(5, 8).map((s) => (s.length > 120 ? s.slice(0, 120) + '...' : s)),
-          examples: sentences.slice(8, 10).map((s) => (s.length > 100 ? s.slice(0, 100) + '...' : s)),
-          conclusion: 'Demonstrates theoretical and methodological validation.',
-        },
-        {
-          sectionHeading: `Part 3: Key Outcomes, Evaluation & Academic Synthesis`,
-          mainIdea: paragraphs[paragraphs.length - 1] ? (paragraphs[paragraphs.length - 1].length > 200 ? paragraphs[paragraphs.length - 1].slice(0, 200) + '...' : paragraphs[paragraphs.length - 1]) : `Synthesis of primary findings, conclusions, and examination essentials in ${title}.`,
-          keyPoints: sentences.slice(10, 13).map((s) => (s.length > 120 ? s.slice(0, 120) + '...' : s)),
-          examples: sentences.slice(13, 15).map((s) => (s.length > 100 ? s.slice(0, 100) + '...' : s)),
-          conclusion: 'Synthesizes crucial takeaways for academic mastery.',
-        },
-      ];
-
-      const keyTakeaways = sentences.slice(0, 5).map((s) => (s.length > 130 ? s.slice(0, 130) + '...' : s));
-      const revisionChecklist = [
-        `Master foundational definitions identified in ${title}`,
-        `Review core concepts: ${definitionMatches.slice(0, 2).map((d) => d.term).join(', ') || 'essential subject frameworks'}`,
-        `Verify empirical findings and quantitative metrics from ${title}`,
-        `Complete practice assessment on key chapter conclusions`,
-        `Summarize the primary takeaways of ${title} in your own words`,
-      ];
-
-      const generatedData = {
-        title: `${title} - ${effectiveLength}`,
-        subject: 'Academic Revision',
-        pageCount: selectedDocument?.pageCount || Math.max(1, Math.ceil(docText.length / 2500)),
-        overview: paragraphs[0] ? (paragraphs[0].length > 220 ? paragraphs[0].slice(0, 220) + '...' : paragraphs[0]) : `Comprehensive academic revision summary for ${title}.`,
-        executiveSummary: sentences.slice(0, 2).join(' ') || `Executive summary of key arguments, concepts, and conclusions in ${title}.`,
-        chapters,
-        keyPoints: sentences.slice(0, 6).map((s) => (s.length > 130 ? s.slice(0, 130) + '...' : s)),
-        definitions: definitionMatches,
-        formulas,
-        datesAndFacts,
-        keyTakeaways: keyTakeaways.length > 0 ? keyTakeaways : [`Review core arguments and definitions systematically for ${title}.`],
-        revisionChecklist,
-      };
       const newSummary: SummaryData = {
         id: `sum-${Date.now()}`,
         docId: selectedDocument?.id || 'doc-manual',

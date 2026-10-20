@@ -8,22 +8,31 @@ import { DocumentUploadModal } from './components/DocumentUploadModal';
 import { PomodoroTimer } from './components/PomodoroTimer';
 import { MobileDrawer } from './components/MobileDrawer';
 
-// Pages
-import { LandingPage } from './pages/LandingPage';
-import { FeaturesPage } from './pages/FeaturesPage';
-import { HowItWorksPage } from './pages/HowItWorksPage';
-import { PricingPage } from './pages/PricingPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { LibraryPage } from './pages/LibraryPage';
-import { SummarizerPage } from './pages/SummarizerPage';
-import { QuizPage } from './pages/QuizPage';
-import { FlashcardsPage } from './pages/FlashcardsPage';
-import { PracticeTestsPage } from './pages/PracticeTestsPage';
-import { StudyAssistantPage } from './pages/StudyAssistantPage';
-import { StudyGroupsPage } from './pages/StudyGroupsPage';
-import { PlannerPage } from './pages/PlannerPage';
-import { SettingsPage } from './pages/SettingsPage';
-import { LegalPage } from './pages/LegalPage';
+// Lazy-loaded Pages for rapid initial bundle loading and code splitting
+const LandingPage = React.lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));
+const FeaturesPage = React.lazy(() => import('./pages/FeaturesPage').then((m) => ({ default: m.FeaturesPage })));
+const HowItWorksPage = React.lazy(() => import('./pages/HowItWorksPage').then((m) => ({ default: m.HowItWorksPage })));
+const PricingPage = React.lazy(() => import('./pages/PricingPage').then((m) => ({ default: m.PricingPage })));
+const DashboardPage = React.lazy(() => import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
+const LibraryPage = React.lazy(() => import('./pages/LibraryPage').then((m) => ({ default: m.LibraryPage })));
+const SummarizerPage = React.lazy(() => import('./pages/SummarizerPage').then((m) => ({ default: m.SummarizerPage })));
+const QuizPage = React.lazy(() => import('./pages/QuizPage').then((m) => ({ default: m.QuizPage })));
+const FlashcardsPage = React.lazy(() => import('./pages/FlashcardsPage').then((m) => ({ default: m.FlashcardsPage })));
+const PracticeTestsPage = React.lazy(() => import('./pages/PracticeTestsPage').then((m) => ({ default: m.PracticeTestsPage })));
+const StudyAssistantPage = React.lazy(() => import('./pages/StudyAssistantPage').then((m) => ({ default: m.StudyAssistantPage })));
+const StudyGroupsPage = React.lazy(() => import('./pages/StudyGroupsPage').then((m) => ({ default: m.StudyGroupsPage })));
+const PlannerPage = React.lazy(() => import('./pages/PlannerPage').then((m) => ({ default: m.PlannerPage })));
+const SettingsPage = React.lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+const LegalPage = React.lazy(() => import('./pages/LegalPage').then((m) => ({ default: m.LegalPage })));
+
+const PageLoadingFallback: React.FC = () => (
+  <div className="flex-1 flex items-center justify-center min-h-[300px] p-6">
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-7 h-7 rounded-full border-2 border-[#D97706] border-t-transparent animate-spin" />
+      <span className="text-xs text-neutral-400 font-mono tracking-wide">Loading workspace...</span>
+    </div>
+  </div>
+);
 
 // Icons for mobile navigation
 import {
@@ -56,6 +65,18 @@ const AppContent: React.FC = () => {
       document.body.classList.remove('theme-light');
     }
   }, []);
+
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      const timer = setTimeout(() => {
+        import('./pages/DashboardPage');
+        import('./pages/SummarizerPage');
+        import('./pages/QuizPage');
+        import('./pages/LibraryPage');
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated]);
 
   const openAuthModal = (mode: 'signin' | 'signup' | 'forgot') => {
     setAuthModalMode(mode);
@@ -157,24 +178,26 @@ const AppContent: React.FC = () => {
       {/* Main Body */}
       {isPublicView ? (
         <main className="flex-1">
-          {currentView === 'landing' && (
-            <LandingPage setCurrentView={setCurrentView} openAuthModal={openAuthModal} />
-          )}
-          {currentView === 'features' && (
-            <FeaturesPage setCurrentView={setCurrentView} openAuthModal={openAuthModal} />
-          )}
-          {currentView === 'how-it-works' && (
-            <HowItWorksPage setCurrentView={setCurrentView} openAuthModal={openAuthModal} />
-          )}
-          {currentView === 'pricing' && (
-            <PricingPage setCurrentView={setCurrentView} openAuthModal={openAuthModal} />
-          )}
-          {currentView === 'privacy' && (
-            <LegalPage type="privacy" setCurrentView={setCurrentView} />
-          )}
-          {currentView === 'terms' && (
-            <LegalPage type="terms" setCurrentView={setCurrentView} />
-          )}
+          <React.Suspense fallback={<PageLoadingFallback />}>
+            {currentView === 'landing' && (
+              <LandingPage setCurrentView={setCurrentView} openAuthModal={openAuthModal} />
+            )}
+            {currentView === 'features' && (
+              <FeaturesPage setCurrentView={setCurrentView} openAuthModal={openAuthModal} />
+            )}
+            {currentView === 'how-it-works' && (
+              <HowItWorksPage setCurrentView={setCurrentView} openAuthModal={openAuthModal} />
+            )}
+            {currentView === 'pricing' && (
+              <PricingPage setCurrentView={setCurrentView} openAuthModal={openAuthModal} />
+            )}
+            {currentView === 'privacy' && (
+              <LegalPage type="privacy" setCurrentView={setCurrentView} />
+            )}
+            {currentView === 'terms' && (
+              <LegalPage type="terms" setCurrentView={setCurrentView} />
+            )}
+          </React.Suspense>
         </main>
       ) : (
         /* Authenticated Split Layout */
@@ -190,35 +213,37 @@ const AppContent: React.FC = () => {
 
           {/* Authenticated Content Area */}
           <main className="flex-1 min-w-0 overflow-y-auto pb-8">
-            {currentView === 'dashboard' && (
-              <DashboardPage
-                setCurrentView={setCurrentView}
-                openUploadModal={() => setUploadModalOpen(true)}
-                onOpenSummary={handleOpenSummary}
-              />
-            )}
-            {currentView === 'library' && (
-              <LibraryPage
-                setCurrentView={setCurrentView}
-                openUploadModal={() => setUploadModalOpen(true)}
-                onOpenSummary={handleOpenSummary}
-              />
-            )}
-            {currentView === 'summarizer' && (
-              <SummarizerPage
-                onGenerateQuiz={handleGenerateQuizFromSummary}
-                onGenerateFlashcards={handleGenerateFlashcardsFromSummary}
-                onAskAI={handleAskAIAboutSummary}
-                selectedSummaryId={selectedSummaryId}
-              />
-            )}
-            {currentView === 'quiz' && <QuizPage />}
-            {currentView === 'flashcards' && <FlashcardsPage />}
-            {currentView === 'practice-tests' && <PracticeTestsPage />}
-            {currentView === 'study-groups' && <StudyGroupsPage />}
-            {currentView === 'study-assistant' && <StudyAssistantPage />}
-            {currentView === 'planner' && <PlannerPage />}
-            {currentView === 'settings' && <SettingsPage />}
+            <React.Suspense fallback={<PageLoadingFallback />}>
+              {currentView === 'dashboard' && (
+                <DashboardPage
+                  setCurrentView={setCurrentView}
+                  openUploadModal={() => setUploadModalOpen(true)}
+                  onOpenSummary={handleOpenSummary}
+                />
+              )}
+              {currentView === 'library' && (
+                <LibraryPage
+                  setCurrentView={setCurrentView}
+                  openUploadModal={() => setUploadModalOpen(true)}
+                  onOpenSummary={handleOpenSummary}
+                />
+              )}
+              {currentView === 'summarizer' && (
+                <SummarizerPage
+                  onGenerateQuiz={handleGenerateQuizFromSummary}
+                  onGenerateFlashcards={handleGenerateFlashcardsFromSummary}
+                  onAskAI={handleAskAIAboutSummary}
+                  selectedSummaryId={selectedSummaryId}
+                />
+              )}
+              {currentView === 'quiz' && <QuizPage />}
+              {currentView === 'flashcards' && <FlashcardsPage />}
+              {currentView === 'practice-tests' && <PracticeTestsPage />}
+              {currentView === 'study-groups' && <StudyGroupsPage />}
+              {currentView === 'study-assistant' && <StudyAssistantPage />}
+              {currentView === 'planner' && <PlannerPage />}
+              {currentView === 'settings' && <SettingsPage />}
+            </React.Suspense>
           </main>
           {!isPublicView && <PomodoroTimer />}
         </div>

@@ -20,9 +20,10 @@ import {
   CheckCircle2,
   Loader2,
 } from 'lucide-react';
-import { useStudy } from '../context/StudyContext';
-import { FlashcardDeck, Flashcard } from '../types';
-import { apiClient } from '../lib/apiClient';
+import { useStudy } from '@/context/StudyContext';
+import { FlashcardDeck, Flashcard } from '@/types';
+import { apiClient } from '@/lib/apiClient';
+import { studyCache } from '@/lib/cache';
 
 export const FlashcardsPage: React.FC = () => {
   const { documents, summaries, flashcardDecks, addFlashcardDeck, rateFlashcard, deleteFlashcardDeck } =
@@ -117,16 +118,28 @@ export const FlashcardsPage: React.FC = () => {
         title = 'Custom Flashcards';
       }
 
-      const data = await apiClient.post<{ success: boolean; data: any }>('/api/ai/flashcards', {
-        content,
-        title,
+      const cacheParams = {
+        snippet: content.slice(0, 1500),
         numCards,
         topic: 'Revision',
-      });
+      };
 
-      if (!data.success || !data.data) throw new Error('Invalid format returned by AI.');
+      let flashcardData = studyCache.get<any>('flashcards', cacheParams);
 
-      const newCards: Flashcard[] = data.data.cards.map((c: any, idx: number) => ({
+      if (!flashcardData) {
+        const data = await apiClient.post<{ success: boolean; data: any }>('/api/ai/flashcards', {
+          content,
+          title,
+          numCards,
+          topic: 'Revision',
+        });
+
+        if (!data.success || !data.data) throw new Error('Invalid format returned by AI.');
+        flashcardData = data.data;
+        studyCache.set('flashcards', cacheParams, flashcardData);
+      }
+
+      const newCards: Flashcard[] = flashcardData.cards.map((c: any, idx: number) => ({
         id: `card-${Date.now()}-${idx}`,
         front: c.front,
         back: c.back,
@@ -141,7 +154,7 @@ export const FlashcardsPage: React.FC = () => {
 
       const newDeck: FlashcardDeck = {
         id: `deck-${Date.now()}`,
-        title: data.data.deckTitle || title,
+        title: flashcardData.deckTitle || title,
         topic: 'Academic Revision',
         cards: newCards,
         totalCards: newCards.length,

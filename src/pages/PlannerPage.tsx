@@ -16,9 +16,9 @@ import {
   GraduationCap,
   Loader2,
 } from 'lucide-react';
-import { useStudy } from '../context/StudyContext';
-import { PlannerTask } from '../types';
-import { apiClient } from '../lib/apiClient';
+import { useStudy } from '@/context/StudyContext';
+import { PlannerTask } from '@/types';
+import { apiClient } from '@/lib/apiClient';
 
 export const PlannerPage: React.FC = () => {
   const { plannerTasks, addPlannerTask, togglePlannerTask, deletePlannerTask } = useStudy();

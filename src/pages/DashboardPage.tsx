@@ -12,9 +12,9 @@ import {
   BookOpen,
   FileCheck,
 } from 'lucide-react';
-import { useStudy } from '../context/StudyContext';
+import { useStudy } from '@/context/StudyContext';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { StreakActivityTracker } from '../components/StreakActivityTracker';
+import { StreakActivityTracker } from '@/components/StreakActivityTracker';
 
 interface DashboardPageProps {
   setCurrentView: (view: string) => void;
@@ -79,9 +79,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   }, [quizzes.length, documents.length]);
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-8 animate-fade-in bg-[#000000]">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-8 bg-[#000000]">
       {/* Welcome Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#1C1C1C]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#1C1C1C] animate-stagger-1">
         <div>
           <h1 className="text-2xl sm:text-3xl font-semibold text-white font-['Clash_Display']">
             Welcome back{user?.displayName ? `, ${user.displayName}` : ''}!
@@ -93,7 +93,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={openUploadModal}
-            className="px-4 py-2.5 bg-gradient-to-r from-[#D97706] to-[#EA580C] hover:from-[#B45309] hover:to-[#C2410C] text-white font-semibold text-xs rounded-xl transition-all shadow-sm shadow-[#D97706]/20 flex items-center gap-2 cursor-pointer"
+            className="px-4 py-2.5 bg-gradient-to-r from-[#D97706] to-[#EA580C] hover:from-[#B45309] hover:to-[#C2410C] text-white font-semibold text-xs rounded-xl transition-all shadow-sm shadow-[#D97706]/20 flex items-center gap-2 cursor-pointer card-hover-lift"
           >
             <Upload className="w-4 h-4" />
             <span>Upload New Material</span>
@@ -102,19 +102,21 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       </div>
 
       {/* Real Interactive Streak & Activity Tracker */}
-      <StreakActivityTracker />
+      <div className="animate-stagger-2 card-hover-lift">
+        <StreakActivityTracker />
+      </div>
 
       {/* A. QUICK ACTIONS */}
-      <section className="space-y-3">
+      <section className="space-y-3 animate-stagger-3">
         <h2 className="text-xs uppercase tracking-wider text-[#D97706] font-semibold font-['Clash_Display']">
           Quick Actions
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <button
             onClick={openUploadModal}
-            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer"
+            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer card-hover-lift"
           >
-            <div className="w-8 h-8 rounded-lg bg-[#D97706]/15 text-[#FDE047] flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#D97706]/30">
+            <div className="w-8 h-8 rounded-lg bg-black text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#333333]">
               <Upload className="w-4 h-4" />
             </div>
             <div>
@@ -125,9 +127,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
           <button
             onClick={() => setCurrentView('summarizer')}
-            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer"
+            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer card-hover-lift"
           >
-            <div className="w-8 h-8 rounded-lg bg-[#D97706]/15 text-[#FDE047] flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#D97706]/30">
+            <div className="w-8 h-8 rounded-lg bg-black text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#333333]">
               <FileText className="w-4 h-4" />
             </div>
             <div>
@@ -138,9 +140,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
           <button
             onClick={() => setCurrentView('quiz')}
-            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer"
+            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer card-hover-lift"
           >
-            <div className="w-8 h-8 rounded-lg bg-[#D97706]/15 text-[#FDE047] flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#D97706]/30">
+            <div className="w-8 h-8 rounded-lg bg-black text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#333333]">
               <HelpCircle className="w-4 h-4" />
             </div>
             <div>
@@ -151,9 +153,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
           <button
             onClick={() => setCurrentView('flashcards')}
-            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer"
+            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer card-hover-lift"
           >
-            <div className="w-8 h-8 rounded-lg bg-[#D97706]/15 text-[#FDE047] flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#D97706]/30">
+            <div className="w-8 h-8 rounded-lg bg-black text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#333333]">
               <Layers className="w-4 h-4" />
             </div>
             <div>
@@ -164,9 +166,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
           <button
             onClick={() => setCurrentView('practice-tests')}
-            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer"
+            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer card-hover-lift"
           >
-            <div className="w-8 h-8 rounded-lg bg-[#D97706]/15 text-[#FDE047] flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#D97706]/30">
+            <div className="w-8 h-8 rounded-lg bg-black text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#333333]">
               <GraduationCap className="w-4 h-4" />
             </div>
             <div>
@@ -177,9 +179,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
           <button
             onClick={() => setCurrentView('study-assistant')}
-            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer"
+            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer card-hover-lift"
           >
-            <div className="w-8 h-8 rounded-lg bg-[#D97706]/15 text-[#FDE047] flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#D97706]/30">
+            <div className="w-8 h-8 rounded-lg bg-black text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#333333]">
               <MessageSquare className="w-4 h-4" />
             </div>
             <div>
@@ -191,47 +193,47 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       </section>
 
       {/* C. STUDY STATISTICS */}
-      <section className="space-y-3">
+      <section className="space-y-3 animate-stagger-4">
         <h2 className="text-xs uppercase tracking-wider text-[#D97706] font-semibold font-['Clash_Display']">
           Your Study Statistics
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C]">
+          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C] card-hover-lift">
             <span className="text-[11px] text-neutral-400 block mb-1">Documents</span>
             <span className="text-2xl font-bold font-mono text-white tabular-nums">
               {stats.totalDocs}
             </span>
           </div>
 
-          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C]">
+          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C] card-hover-lift">
             <span className="text-[11px] text-neutral-400 block mb-1">Summaries</span>
             <span className="text-2xl font-bold font-mono text-white tabular-nums">
               {stats.totalSummaries}
             </span>
           </div>
 
-          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C]">
+          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C] card-hover-lift">
             <span className="text-[11px] text-neutral-400 block mb-1">Quizzes Done</span>
             <span className="text-2xl font-bold font-mono text-white tabular-nums">
               {stats.totalQuizzes}
             </span>
           </div>
 
-          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C]">
+          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C] card-hover-lift">
             <span className="text-[11px] text-neutral-400 block mb-1">Average Score</span>
             <span className="text-2xl font-bold font-mono text-[#FDE047] tabular-nums">
               {stats.averageScore}%
             </span>
           </div>
 
-          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C]">
+          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C] card-hover-lift">
             <span className="text-[11px] text-neutral-400 block mb-1">Cards Reviewed</span>
             <span className="text-2xl font-bold font-mono text-white tabular-nums">
               {stats.flashcardsReviewed}
             </span>
           </div>
 
-          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C]">
+          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C] card-hover-lift">
             <span className="text-[11px] text-neutral-400 block mb-1">Sessions Done</span>
             <span className="text-2xl font-bold font-mono text-white tabular-nums">
               {stats.studySessions}
@@ -241,7 +243,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       </section>
 
       {/* D. ANALYTICS WIDGET */}
-      <section className="mt-8 p-6 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C]">
+      <section className="mt-8 p-6 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] animate-stagger-5 card-hover-lift">
         <h3 className="text-sm font-bold text-white mb-6">Activity Analytics</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
@@ -261,9 +263,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         </div>
       </section>
 
-
       {/* D. CONTINUE STUDYING & E. STUDY GOALS */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-stagger-5">
         {/* Continue Studying */}
         <div className="lg:col-span-7 space-y-4">
           <div className="flex items-center justify-between">
@@ -308,7 +309,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               </div>
             </div>
           ) : (
-            <div className="p-8 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] text-center space-y-3">
+            <div className="p-8 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] text-center space-y-3 card-hover-lift">
               <div className="w-10 h-10 rounded-full bg-[#141414] text-[#FDE047] border border-[#262626] flex items-center justify-center mx-auto">
                 <BookOpen className="w-5 h-5" />
               </div>
@@ -318,7 +319,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               </p>
               <button
                 onClick={openUploadModal}
-                className="px-4 py-2 bg-gradient-to-r from-[#D97706] to-[#EA580C] hover:from-[#B45309] hover:to-[#C2410C] text-white text-xs font-semibold rounded-lg inline-flex items-center gap-2 cursor-pointer shadow-sm"
+                className="px-4 py-2 bg-gradient-to-r from-[#D97706] to-[#EA580C] hover:from-[#B45309] hover:to-[#C2410C] text-white text-xs font-semibold rounded-lg inline-flex items-center gap-2 cursor-pointer shadow-sm card-hover-lift"
               >
                 <Upload className="w-3.5 h-3.5" />
                 <span>Upload First PDF</span>
@@ -328,7 +329,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
           {/* Quick Resume Card for Flashcards or Quiz */}
           {recentDeck && (
-            <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C] flex items-center justify-between">
+            <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C] flex items-center justify-between card-hover-lift">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-[#141414] text-[#FDE047] border border-[#262626] flex items-center justify-center">
                   <Layers className="w-4 h-4" />
@@ -366,7 +367,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             </button>
           </div>
 
-          <div className="p-5 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] space-y-5">
+          <div className="p-5 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] space-y-5 card-hover-lift">
             {isEditingGoals ? (
               <div className="space-y-4 text-xs">
                 <div>
