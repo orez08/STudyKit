@@ -78,6 +78,15 @@ const AppContent: React.FC = () => {
     }
   }, [isAuthenticated]);
 
+  const prevAuthRef = React.useRef(isAuthenticated);
+  React.useEffect(() => {
+    if (prevAuthRef.current && !isAuthenticated) {
+      setCurrentView('landing');
+      openAuthModal('signin');
+    }
+    prevAuthRef.current = isAuthenticated;
+  }, [isAuthenticated]);
+
   const openAuthModal = (mode: 'signin' | 'signup' | 'forgot') => {
     setAuthModalMode(mode);
     setAuthModalOpen(true);
@@ -242,7 +251,14 @@ const AppContent: React.FC = () => {
               {currentView === 'study-groups' && <StudyGroupsPage />}
               {currentView === 'study-assistant' && <StudyAssistantPage />}
               {currentView === 'planner' && <PlannerPage />}
-              {currentView === 'settings' && <SettingsPage />}
+              {currentView === 'settings' && (
+                <SettingsPage
+                  onSignOut={() => {
+                    setCurrentView('landing');
+                    openAuthModal('signin');
+                  }}
+                />
+              )}
             </React.Suspense>
           </main>
           {!isPublicView && <PomodoroTimer />}

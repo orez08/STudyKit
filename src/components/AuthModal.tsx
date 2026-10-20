@@ -28,6 +28,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+      setError(null);
+      setSuccessMsg(null);
+    }
+  }, [isOpen, initialMode]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {

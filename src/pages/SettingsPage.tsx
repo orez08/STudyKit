@@ -16,8 +16,17 @@ import {
 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 
-export const SettingsPage: React.FC = () => {
+interface SettingsPageProps {
+  onSignOut?: () => void;
+}
+
+export const SettingsPage: React.FC<SettingsPageProps> = ({ onSignOut }) => {
   const { user, stats, resetPassword, updateUserGoals, signOut } = useStudy();
+
+  const handleSignOutAction = async () => {
+    await signOut();
+    onSignOut?.();
+  };
 
   const [displayName, setDisplayName] = useState(user?.displayName || 'Student');
   const [dailyMinutes, setDailyMinutes] = useState(user?.dailyGoalMinutes || 60);
@@ -221,7 +230,7 @@ export const SettingsPage: React.FC = () => {
         <div className="pt-4 flex items-center justify-between border-t border-[#2A2A2A]">
           <span className="text-xs text-neutral-400">Account Session</span>
           <button
-            onClick={() => signOut()}
+            onClick={handleSignOutAction}
             className="px-4 py-2 bg-red-950/60 hover:bg-red-900 text-red-300 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5 text-red-400" />
@@ -242,7 +251,7 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
         <button
-          onClick={() => signOut()}
+          onClick={handleSignOutAction}
           className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer shrink-0"
         >
           <LogOut className="w-4 h-4" />

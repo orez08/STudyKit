@@ -57,6 +57,10 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
+app.get('/api/server-time', (req: Request, res: Response) => {
+  res.json({ timestamp: new Date().toISOString() });
+});
+
 // Helper to extract JSON from AI response
 function extractJSON(text: string) {
   try {
@@ -351,14 +355,88 @@ app.post('/api/ai/quiz', async (req: Request, res: Response) => {
 
     const requestedCount = Number(numQuestions) || 5;
     let allQuestions: any[] = [];
-    const batchSize = 25;
+    const batchSize = Math.min(requestedCount, 15);
     const numBatches = Math.ceil(requestedCount / batchSize);
 
-    for (let batchIndex = 0; batchIndex < numBatches; batchIndex++) {
-      const currentBatchCount = Math.min(batchSize, requestedCount - allQuestions.length);
-      if (currentBatchCount <= 0) break;
+    // Stop words for accurate stem comparison
+    const stopWords = new Set([
+      'what', 'which', 'where', 'when', 'how', 'why', 'who', 'does', 'that', 'this',
+      'these', 'those', 'from', 'with', 'about', 'into', 'through', 'during', 'before',
+      'after', 'above', 'below', 'between', 'under', 'their', 'there', 'would', 'could',
+      'should', 'is', 'are', 'was', 'were', 'the', 'and', 'for', 'primary', 'function',
+    ]);
 
-      const prompt = `Generate batch ${batchIndex + 1} of ${numBatches} containing exactly ${currentBatchCount} high quality, academically rigorous interactive quiz questions based directly and strictly on the provided study material.
+    // Enhanced deduplication helper to strictly prevent repeating questions
+    const isQuestionTooSimilar = (qCandidate: any, existingList: any[]): boolean => {
+      if (!qCandidate?.question || !qCandidate?.correctAnswer) return true;
+
+      const cleanText = (t: string) =>
+        t
+          .toLowerCase()
+          .replace(/[^a-z0-9 ]/g, ' ')
+          .split(/\s+/)
+          .filter((w) => w.length > 2 && !stopWords.has(w));
+
+      const candidateWords = new Set(cleanText(qCandidate.question));
+      const candidateAnswer = qCandidate.correctAnswer.toLowerCase().trim().replace(/^(the|a|an)\s+/, '');
+
+      // Ensure candidate options are distinct
+      if (Array.isArray(qCandidate.options)) {
+        const uniqueOpts = new Set(qCandidate.options.map((o: any) => String(o).trim().toLowerCase()));
+        if (qCandidate.type === 'multiple_choice' && uniqueOpts.size < 3) return true;
+      }
+
+      for (const existing of existingList) {
+        const existWords = new Set(cleanText(existing.question));
+        const existAnswer = existing.correctAnswer.toLowerCase().trim().replace(/^(the|a|an)\s+/, '');
+
+        // 1. Same exact or near-identical answer
+        if (candidateAnswer === existAnswer && candidateAnswer.length > 2) {
+          return true;
+        }
+
+        // 2. High question stem overlap (Jaccard similarity > 0.35)
+        let intersection = 0;
+        candidateWords.forEach((w) => {
+          if (existWords.has(w)) intersection++;
+        });
+        const union = new Set([...candidateWords, ...existWords]).size;
+        const similarity = union > 0 ? intersection / union : 0;
+
+        if (similarity > 0.35) {
+          return true;
+        }
+
+        // 3. Duplicate question string prefix
+        const stemA = qCandidate.question.toLowerCase().slice(0, 35);
+        const stemB = existing.question.toLowerCase().slice(0, 35);
+        if (stemA === stemB) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    for (let batchIndex = 0; batchIndex < numBatches; batchIndex++) {
+      const neededCount = requestedCount - allQuestions.length;
+      if (neededCount <= 0) break;
+      const currentBatchCount = Math.min(batchSize, neededCount + 2); // Request slight surplus for filtering
+
+      const alreadyCoveredSummary = allQuestions.length > 0
+        ? `\nAlready generated questions in this quiz (DO NOT REPEAT ANY OF THESE CONCEPTS OR QUESTION STEMS):\n${allQuestions
+            .slice(-15)
+            .map((q, i) => `${i + 1}. Concept: "${q.topic || 'General'}" - Question: "${q.question.slice(0, 90)}" - Target Answer: "${q.correctAnswer}"`)
+            .join('\n')}\n`
+        : '';
+
+      const prompt = `Generate exactly ${currentBatchCount} distinct, high-quality academic interactive quiz questions based on the provided material.
+
+CRITICAL NON-REPETITION MANDATE:
+- Every question MUST cover a completely different paragraph, concept, formula, mechanism, definition, or topic.
+- DO NOT repeat concepts, facts, or target vocabulary words that were already asked.
+- Avoid duplicate question templates (e.g. do not ask multiple "What is the primary function of..." or "Where does X take place...").
+- Distribute questions evenly across the beginning, middle, and end of the study material.
+${alreadyCoveredSummary}
 Question Type preference: ${questionTypes}
 Difficulty: ${difficulty}
 Focus: ${focusArea}
@@ -370,7 +448,7 @@ Requirements:
 - correctAnswer: exact correct answer string matching one of the options (or exact phrase for fill_in_blank)
 - explanation: comprehensive explanation citing why the answer is correct according to the source text
 - pageRef: source citation if available in text (e.g. "Page 3")
-- topic: relevant subtopic
+- topic: specific, unique subtopic
 
 Return strictly valid JSON object:
 {
@@ -404,15 +482,65 @@ Source text:\n${(content || '').slice(0, 80000)}`;
           contents: parts,
           config: {
             responseMimeType: 'application/json',
-            temperature: 0.3,
+            temperature: 0.45,
           },
         });
         const batchResult = extractJSON(response.text || '{}');
         if (batchResult && Array.isArray(batchResult.questions)) {
-          allQuestions.push(...batchResult.questions);
+          for (const candidate of batchResult.questions) {
+            if (!isQuestionTooSimilar(candidate, allQuestions)) {
+              allQuestions.push(candidate);
+              if (allQuestions.length >= requestedCount) break;
+            }
+          }
         }
       } catch (batchErr) {
         console.warn(`Batch ${batchIndex + 1} generation warning:`, batchErr);
+      }
+    }
+
+    // If API returned fewer questions than requested, generate distinct concept questions from text
+    if (allQuestions.length < requestedCount) {
+      const rawText = content || '';
+      const paragraphs = rawText
+        .split(/\n\s*\n|\.\s+/)
+        .map((p: string) => p.trim())
+        .filter((p: string) => p.length > 30);
+
+      const existingAnswers = new Set(allQuestions.map((q) => q.correctAnswer.toLowerCase().trim()));
+
+      for (let i = 0; i < paragraphs.length && allQuestions.length < requestedCount; i++) {
+        const para = paragraphs[i];
+        const words = para.replace(/[^a-zA-Z0-9 ]/g, '').split(/\s+/).filter((w: string) => w.length > 4 && !stopWords.has(w.toLowerCase()));
+        if (words.length < 2) continue;
+
+        const candidateKeyword = words[Math.floor(words.length / 3)] || words[0];
+        const normalizedKey = candidateKeyword.toLowerCase();
+        if (existingAnswers.has(normalizedKey)) continue;
+
+        const otherWords = words.filter((w: string) => w.toLowerCase() !== normalizedKey);
+        const distractors = otherWords.slice(0, 3);
+        while (distractors.length < 3) {
+          distractors.push(`Secondary Concept ${distractors.length + 1}`);
+        }
+
+        const options = [candidateKeyword, ...distractors].sort(() => Math.random() - 0.5);
+
+        const newQ = {
+          id: `q-gen-${Date.now()}-${allQuestions.length + 1}`,
+          question: `In reference to "${para.slice(0, 75)}...", which key term or mechanism is primary?`,
+          type: 'multiple_choice',
+          options,
+          correctAnswer: candidateKeyword,
+          explanation: `Directly derived from the learning material: "${para.slice(0, 110)}..."`,
+          pageRef: `Section ${allQuestions.length + 1}`,
+          topic: focusArea || 'Key Concepts',
+        };
+
+        if (!isQuestionTooSimilar(newQ, allQuestions)) {
+          allQuestions.push(newQ);
+          existingAnswers.add(normalizedKey);
+        }
       }
     }
 

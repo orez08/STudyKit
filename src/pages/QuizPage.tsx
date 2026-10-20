@@ -69,46 +69,115 @@ export const QuizPage: React.FC<QuizPageProps> = ({ initialSummaryContext }) => 
     }
   }, [mode, enableTimer, timeRemainingSeconds]);
 
+  // Stop words for academic concept extraction
+  const QUIZ_STOP_WORDS = new Set([
+    'about', 'above', 'after', 'again', 'against', 'all', 'also', 'and', 'any', 'are',
+    'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by', 'can',
+    'could', 'did', 'does', 'doing', 'down', 'during', 'each', 'few', 'for', 'from',
+    'further', 'had', 'has', 'have', 'having', 'her', 'here', 'hers', 'him', 'his', 'how',
+    'into', 'its', 'just', 'more', 'most', 'not', 'only', 'other', 'our', 'ours', 'out',
+    'over', 'same', 'should', 'some', 'such', 'than', 'that', 'the', 'their', 'theirs',
+    'them', 'then', 'there', 'these', 'they', 'this', 'those', 'through', 'too', 'under',
+    'until', 'very', 'was', 'were', 'what', 'when', 'where', 'which', 'while', 'who',
+    'whom', 'why', 'with', 'would', 'primary', 'function', 'describe', 'concept', 'theory'
+  ]);
+
+  const extractAcademicTerms = (text: string): string[] => {
+    const words = text
+      .replace(/[^a-zA-Z0-9\s-]/g, ' ')
+      .split(/\s+/)
+      .map((w) => w.trim())
+      .filter((w) => w.length >= 4 && !QUIZ_STOP_WORDS.has(w.toLowerCase()));
+
+    const seen = new Set<string>();
+    const uniqueTerms: string[] = [];
+    words.forEach((w) => {
+      const norm = w.toLowerCase();
+      if (!seen.has(norm) && /^[a-zA-Z]+$/.test(w)) {
+        seen.add(norm);
+        uniqueTerms.push(w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+      }
+    });
+    return uniqueTerms;
+  };
+
   const generateFallbackQuiz = (text: string, title: string, count: number): QuizItem => {
-    const sentences = text.split(/[\.\!\?]\s+/).filter((s) => s.trim().length > 15);
+    const rawParagraphs = text
+      .split(/\n\s*\n|\.\s+/)
+      .map((p) => p.trim())
+      .filter((p) => p.length >= 25);
+
+    const poolOfTerms = extractAcademicTerms(text);
     const questions: QuizQuestion[] = [];
-    for (let i = 0; i < Math.min(count, sentences.length); i++) {
-      const sentence = sentences[i];
-      const words = sentence.split(' ');
-      const keyword = words[Math.floor(words.length / 2)] || 'concept';
-      const questionText = sentence.replace(new RegExp(keyword, 'gi'), '_____');
-      
-      const options = [
-        keyword,
-        'Alternative Theory',
-        'Secondary Mechanism',
-        'Control Parameter',
-      ].sort(() => Math.random() - 0.5);
+    const usedAnswers = new Set<string>();
+    const usedStems = new Set<string>();
 
-      questions.push({
-        id: `q-${Date.now()}-${i}`,
-        question: `Identify the correct term or concept for this study excerpt: "${questionText}"`,
-        type: 'multiple_choice',
-        options,
-        correctAnswer: keyword,
-        explanation: `Based on the source document excerpt: "${sentence.slice(0, 100)}..."`,
-        pageRef: `Section ${i + 1}`,
-        topic: focusArea,
-      });
-    }
+    const stride = Math.max(1, Math.floor(rawParagraphs.length / Math.max(count, 1)));
 
-    while (questions.length < count) {
-      const idx = questions.length + 1;
-      questions.push({
-        id: `q-${Date.now()}-${idx}`,
-        question: `What is a primary principle or conclusion regarding ${title} (Question ${idx})?`,
-        type: 'multiple_choice',
-        options: ['Core Principle A', 'Secondary Hypothesis B', 'Control Factor C', 'None of the above'],
-        correctAnswer: 'Core Principle A',
-        explanation: 'Fundamental concept derived from the study material.',
-        pageRef: 'Overview',
-        topic: focusArea,
-      });
+    for (let i = 0; i < count; i++) {
+      const targetIndex = (i * stride) % Math.max(rawParagraphs.length, 1);
+      const excerpt = rawParagraphs[targetIndex] || `Key academic concept in ${title} #${i + 1}`;
+      const words = excerpt
+        .replace(/[^a-zA-Z0-9 ]/g, '')
+        .split(/\s+/)
+        .filter((w) => w.length > 4 && !QUIZ_STOP_WORDS.has(w.toLowerCase()));
+
+      // Pick a unique term for this question
+      let keyword = words.find((w) => !usedAnswers.has(w.toLowerCase())) ||
+        poolOfTerms.find((t) => !usedAnswers.has(t.toLowerCase())) ||
+        `Concept ${i + 1}`;
+
+      usedAnswers.add(keyword.toLowerCase());
+
+      // Distinct plausible distractors
+      const distractors = poolOfTerms
+        .filter((t) => t.toLowerCase() !== keyword.toLowerCase() && !usedAnswers.has(t.toLowerCase()))
+        .slice(0, 3);
+
+      while (distractors.length < 3) {
+        distractors.push(`Academic Variable ${distractors.length + 1}`);
+      }
+
+      const options = [keyword, ...distractors].sort(() => Math.random() - 0.5);
+
+      // Vary the question modality across 5 academic formats
+      const modality = i % 5;
+      let questionPrompt = '';
+      let qType: 'multiple_choice' | 'true_false' = 'multiple_choice';
+      let qOptions = options;
+      let qCorrect = keyword;
+
+      if (modality === 0) {
+        questionPrompt = `According to the study material, which term best defines: "${excerpt.slice(0, 95)}..."?`;
+      } else if (modality === 1) {
+        questionPrompt = `In the context of ${title}, what is the primary role or mechanism governed by "${keyword}"?`;
+      } else if (modality === 2) {
+        qType = 'true_false';
+        const isTrue = i % 2 === 0;
+        qCorrect = isTrue ? 'True' : 'False';
+        qOptions = ['True', 'False'];
+        questionPrompt = `True or False: In ${title}, the study notes indicate that "${excerpt.slice(0, 100)}."`;
+      } else if (modality === 3) {
+        questionPrompt = `Which analytical conclusion or finding is directly associated with "${keyword}"?`;
+      } else {
+        questionPrompt = `How does the source text differentiate "${keyword}" from other principles in this domain?`;
+      }
+
+      // Ensure stem uniqueness
+      const stemKey = questionPrompt.slice(0, 45).toLowerCase();
+      if (!usedStems.has(stemKey)) {
+        usedStems.add(stemKey);
+        questions.push({
+          id: `q-diverse-${Date.now()}-${i + 1}`,
+          question: questionPrompt,
+          type: qType,
+          options: qOptions,
+          correctAnswer: qCorrect,
+          explanation: `Directly supported by the study material: "${excerpt.slice(0, 130)}..."`,
+          pageRef: `Section ${i + 1}`,
+          topic: focusArea || 'Key Principles',
+        });
+      }
     }
 
     return {
@@ -122,6 +191,53 @@ export const QuizPage: React.FC<QuizPageProps> = ({ initialSummaryContext }) => 
       questions,
       focusArea,
     };
+  };
+
+  // Client-side deduplication & diversity validator
+  const deduplicateAndDiversify = (
+    rawQuestions: QuizQuestion[],
+    targetCount: number,
+    sourceText: string,
+    docTitle: string
+  ): QuizQuestion[] => {
+    const verified: QuizQuestion[] = [];
+    const seenStems = new Set<string>();
+    const seenAnswers = new Set<string>();
+
+    const normalize = (t: string) =>
+      t.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 40);
+
+    for (const q of rawQuestions) {
+      if (!q || !q.question || !q.correctAnswer) continue;
+      const stem = normalize(q.question);
+      const ans = q.correctAnswer.toLowerCase().trim().replace(/^(the|a|an)\s+/, '');
+
+      if (seenStems.has(stem) || (q.type !== 'true_false' && seenAnswers.has(ans))) {
+        continue; // Discard duplicate
+      }
+
+      seenStems.add(stem);
+      if (q.type !== 'true_false') seenAnswers.add(ans);
+      verified.push(q);
+      if (verified.length >= targetCount) break;
+    }
+
+    // If duplicates were discarded and we need backfills, generate unique questions
+    if (verified.length < targetCount) {
+      const backup = generateFallbackQuiz(sourceText, docTitle, targetCount + 5);
+      for (const bq of backup.questions) {
+        const stem = normalize(bq.question);
+        const ans = bq.correctAnswer.toLowerCase().trim().replace(/^(the|a|an)\s+/, '');
+        if (!seenStems.has(stem) && (bq.type === 'true_false' || !seenAnswers.has(ans))) {
+          seenStems.add(stem);
+          if (bq.type !== 'true_false') seenAnswers.add(ans);
+          verified.push(bq);
+          if (verified.length >= targetCount) break;
+        }
+      }
+    }
+
+    return verified.slice(0, targetCount);
   };
 
   const handleGenerateQuiz = async () => {
@@ -168,7 +284,7 @@ export const QuizPage: React.FC<QuizPageProps> = ({ initialSummaryContext }) => 
         focusArea,
       };
 
-      let quizData = studyCache.get<any>('quiz', cacheParams);
+      let quizData = studyCache.get<any>('quiz_v3', cacheParams);
 
       if (!quizData) {
         const response = await fetch('/api/ai/quiz', {
@@ -194,17 +310,26 @@ export const QuizPage: React.FC<QuizPageProps> = ({ initialSummaryContext }) => 
         }
 
         quizData = res.data;
-        studyCache.set('quiz', cacheParams, quizData);
+        studyCache.set('quiz_v3', cacheParams, quizData);
       }
+
+      // Guarantee strict deduplication and rich concept diversity
+      const diverseQuestions = deduplicateAndDiversify(
+        quizData.questions || [],
+        numQuestions,
+        content,
+        title
+      );
+
       const newQuiz: QuizItem = {
         id: `quiz-${Date.now()}`,
         docId: selectedDocId || undefined,
         title: quizData.title || title,
         difficulty,
-        totalQuestions: quizData.questions.length,
+        totalQuestions: diverseQuestions.length,
         completed: false,
         createdAt: new Date().toISOString(),
-        questions: quizData.questions,
+        questions: diverseQuestions,
         focusArea,
       };
 

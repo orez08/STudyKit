@@ -17,6 +17,8 @@ export interface UserProfile {
   weeklyGoalQuizzes: number;
   createdAt?: string;
   currentStreak: number;
+  streakFreezes: number;
+  lastFreezeAwardedAt: number;
   lastStudyDate: string; // ISO date
 }
 

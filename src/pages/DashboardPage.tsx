@@ -13,8 +13,9 @@ import {
   FileCheck,
 } from 'lucide-react';
 import { useStudy } from '@/context/StudyContext';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { StreakActivityTracker } from '@/components/StreakActivityTracker';
+import { Leaderboard } from '@/components/Leaderboard';
 
 interface DashboardPageProps {
   setCurrentView: (view: string) => void;
@@ -35,7 +36,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     quizzes,
     flashcardDecks,
     updateUserGoals,
+    updateActivity,
   } = useStudy();
+
+  React.useEffect(() => {
+    (async () => await updateActivity())();
+  }, []);
 
   const [isEditingGoals, setIsEditingGoals] = useState(false);
   const [dailyMinutesInput, setDailyMinutesInput] = useState(user?.dailyGoalMinutes || 60);
@@ -71,9 +77,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       const hours = Number(((act.minutes || 0) / 60).toFixed(1));
       return {
         day: dayName,
-        notes: act.docs || (idx < 5 ? 1 : 0),
-        quizzes: act.quizzes || (idx % 2 === 0 ? 1 : 0),
-        hours: Math.max(hours, idx < 5 ? Number((0.8 + idx * 0.2).toFixed(1)) : 0.5),
+        isActive: hours > 0,
+        hours: Math.max(hours, 0),
       };
     });
   }, [quizzes.length, documents.length]);
@@ -102,8 +107,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       </div>
 
       {/* Real Interactive Streak & Activity Tracker */}
-      <div className="animate-stagger-2 card-hover-lift">
-        <StreakActivityTracker />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 animate-stagger-2 card-hover-lift">
+          <StreakActivityTracker />
+        </div>
+        <div className="lg:col-span-1 animate-stagger-2 card-hover-lift">
+          <Leaderboard />
+        </div>
       </div>
 
       {/* A. QUICK ACTIONS */}
@@ -247,18 +257,20 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         <h3 className="text-sm font-bold text-white mb-6">Activity Analytics</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={weeklyAnalyticsData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#222222" />
+            <BarChart data={weeklyAnalyticsData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#222222" vertical={false} />
               <XAxis dataKey="day" stroke="#737373" fontSize={11} />
               <YAxis stroke="#737373" fontSize={11} />
               <Tooltip
                 contentStyle={{ backgroundColor: '#141414', border: '1px solid #2E2E2E', borderRadius: '8px' }}
                 itemStyle={{ fontSize: '11px', color: '#FFFFFF' }}
               />
-              <Area type="monotone" name="Study Hours" dataKey="hours" stroke="#F2C230" fill="#F2C230" fillOpacity={0.25} />
-              <Area type="monotone" name="Quizzes Taken" dataKey="quizzes" stroke="#EAB308" fill="#EAB308" fillOpacity={0.2} />
-              <Area type="monotone" name="Documents Read" dataKey="notes" stroke="#38BDF8" fill="#38BDF8" fillOpacity={0.15} />
-            </AreaChart>
+              <Bar dataKey="hours" radius={[4, 4, 0, 0]}>
+                {weeklyAnalyticsData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.isActive ? '#D97706' : '#262626'} />
+                ))}
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </section>

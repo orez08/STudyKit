@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { useToast } from '@/context/ToastContext';
 import {
   UserProfile,
   DocumentItem,
@@ -10,14 +11,6 @@ import {
   PlannerTask,
   ChatMessage,
 } from '../types';
-import {
-  SAMPLE_DOCUMENTS,
-  SAMPLE_SUMMARIES,
-  SAMPLE_QUIZZES,
-  SAMPLE_FLASHCARD_DECKS,
-  SAMPLE_PRACTICE_TESTS,
-  SAMPLE_TASKS,
-} from '../data/sampleData';
 import { auth, db, handleFirestoreError, OperationType, testConnection } from '../lib/firebase';
 import {
   signInWithEmailAndPassword,
@@ -50,6 +43,7 @@ interface StudyContextType {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updateUserGoals: (dailyMinutes: number, weeklyQuizzes: number) => void;
+  updateActivity: () => Promise<void>;
   // Documents
   documents: DocumentItem[];
   addDocument: (docItem: DocumentItem) => Promise<void>;
@@ -94,276 +88,380 @@ interface StudyContextType {
   };
 }
 
+interface SavedAccountRecord {
+  pass: string;
+  profile: UserProfile;
+  uid: string;
+}
+
+const getRegisteredAccounts = (): Record<string, SavedAccountRecord> => {
+  try {
+    const raw = localStorage.getItem('studykit_registered_users');
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+const saveRegisteredAccount = (email: string, pass: string, profile: UserProfile) => {
+  try {
+    const accs = getRegisteredAccounts();
+    const normalized = email.toLowerCase().trim();
+    accs[normalized] = { pass, profile, uid: profile.uid };
+    localStorage.setItem('studykit_registered_users', JSON.stringify(accs));
+  } catch (e) {
+    console.warn('Error saving registered account record:', e);
+  }
+};
+
+const getStableAccountUid = (email: string): string => {
+  const normalized = email.toLowerCase().trim();
+  let hash = 0;
+  for (let i = 0; i < normalized.length; i++) {
+    hash = ((hash << 5) - hash) + normalized.charCodeAt(i);
+    hash |= 0;
+  }
+  return `usr_${Math.abs(hash)}`;
+};
+
+const getUserStorageKey = (uid: string, key: string) => `studykit_${uid}_${key}`;
+
+const saveUserScopedData = (uid: string, key: string, data: any) => {
+  try {
+    localStorage.setItem(getUserStorageKey(uid, key), JSON.stringify(data));
+  } catch (e) {
+    console.warn(`Could not save scoped data ${key} for user ${uid}:`, e);
+  }
+};
+
+const loadUserScopedData = <T,>(uid: string, key: string, fallback: T): T => {
+  try {
+    const raw = localStorage.getItem(getUserStorageKey(uid, key));
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 const StudyContext = createContext<StudyContextType | undefined>(undefined);
 
 export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const activeUidInit = localStorage.getItem('studykit_active_uid') || '';
+
   const [user, setUser] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem('studykit_user');
-    return saved ? JSON.parse(saved) : null;
+    if (activeUidInit) {
+      const scopedUser = localStorage.getItem(getUserStorageKey(activeUidInit, 'profile'));
+      if (scopedUser) {
+        try { return JSON.parse(scopedUser); } catch {}
+      }
+    }
+    const legacy = localStorage.getItem('studykit_user');
+    return legacy ? JSON.parse(legacy) : null;
   });
+
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [activeDoc, setActiveDoc] = useState<DocumentItem | null>(null);
 
-  // Core collections in state (empty for fresh launch)
+  // User-scoped collections
   const [documents, setDocuments] = useState<DocumentItem[]>(() => {
-    const saved = localStorage.getItem('studykit_docs');
-    if (!saved) return [];
-    try {
-      const parsed: DocumentItem[] = JSON.parse(saved);
-      return parsed.filter((d) => !d.id.startsWith('doc-bio-101') && !d.id.startsWith('doc-econ-201'));
-    } catch {
-      return [];
+    if (activeUidInit) {
+      return loadUserScopedData<DocumentItem[]>(activeUidInit, 'docs', []);
     }
+    return [];
   });
 
   const [summaries, setSummaries] = useState<SummaryData[]>(() => {
-    const saved = localStorage.getItem('studykit_summaries');
-    if (!saved) return [];
-    try {
-      const parsed: SummaryData[] = JSON.parse(saved);
-      return parsed.filter((s) => !s.id.startsWith('sum-bio-101') && !s.id.startsWith('sum-econ-201'));
-    } catch {
-      return [];
+    if (activeUidInit) {
+      return loadUserScopedData<SummaryData[]>(activeUidInit, 'summaries', []);
     }
+    return [];
   });
 
   const [quizzes, setQuizzes] = useState<QuizItem[]>(() => {
-    const saved = localStorage.getItem('studykit_quizzes');
-    if (!saved) return [];
-    try {
-      const parsed: QuizItem[] = JSON.parse(saved);
-      return parsed.filter((q) => !q.id.startsWith('quiz-bio-101') && !q.id.startsWith('quiz-econ-201'));
-    } catch {
-      return [];
+    if (activeUidInit) {
+      return loadUserScopedData<QuizItem[]>(activeUidInit, 'quizzes', []);
     }
+    return [];
   });
 
   const [flashcardDecks, setFlashcardDecks] = useState<FlashcardDeck[]>(() => {
-    const saved = localStorage.getItem('studykit_decks');
-    if (!saved) return [];
-    try {
-      const parsed: FlashcardDeck[] = JSON.parse(saved);
-      return parsed.filter((d) => !d.id.startsWith('deck-bio-101') && !d.id.startsWith('deck-econ-201'));
-    } catch {
-      return [];
+    if (activeUidInit) {
+      return loadUserScopedData<FlashcardDeck[]>(activeUidInit, 'decks', []);
     }
+    return [];
   });
 
   const [practiceTests, setPracticeTests] = useState<PracticeTestItem[]>(() => {
-    const saved = localStorage.getItem('studykit_practice_tests');
-    if (!saved) return [];
-    try {
-      const parsed: PracticeTestItem[] = JSON.parse(saved);
-      return parsed.filter((t) => !t.id.startsWith('test-bio-101') && !t.id.startsWith('test-econ-201'));
-    } catch {
-      return [];
+    if (activeUidInit) {
+      return loadUserScopedData<PracticeTestItem[]>(activeUidInit, 'practice_tests', []);
     }
+    return [];
   });
 
   const [plannerTasks, setPlannerTasks] = useState<PlannerTask[]>(() => {
-    const saved = localStorage.getItem('studykit_tasks');
-    if (!saved) return [];
-    try {
-      const parsed: PlannerTask[] = JSON.parse(saved);
-      return parsed.filter((t) => !t.id.startsWith('task-1') && !t.id.startsWith('task-2') && !t.id.startsWith('task-3'));
-    } catch {
-      return [];
+    if (activeUidInit) {
+      return loadUserScopedData<PlannerTask[]>(activeUidInit, 'tasks', []);
     }
+    return [];
   });
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
-    const saved = localStorage.getItem('studykit_chat');
-    return saved
-      ? JSON.parse(saved)
-      : [
-          {
-            id: 'msg-welcome',
-            role: 'assistant',
-            content:
-              'Hello! I am your AI Study Partner. You can ask me any question about your uploaded documents, lecture notes, or general academic topics. Select a document above to ground my answers with exact citations and page references!',
-            timestamp: new Date().toISOString(),
-            suggestedFollowUps: [
-              'Summarize the light-dependent reactions in photosynthesis',
-              'Explain how RuBisCO works in the Calvin cycle',
-              'What causes demand-pull inflation?',
-            ],
-          },
-        ];
+    return [
+      {
+        id: 'msg-welcome',
+        role: 'assistant',
+        content:
+          'Hello! I am your AI Study Partner. You can ask me any question about your uploaded documents, lecture notes, or general academic topics. Select a document above to ground my answers with exact citations and page references!',
+        timestamp: new Date().toISOString(),
+        suggestedFollowUps: [
+          'Summarize key principles in my active document',
+          'Create a 5-question review on core definitions',
+          'Explain difficult concepts step-by-step',
+        ],
+      },
+    ];
   });
 
-  // Test Firestore connection on boot
+  // Current UID ref to avoid stale closure during sync
+  const userRef = useRef<UserProfile | null>(user);
   useEffect(() => {
-    testConnection().catch((err) => console.log('Firestore connection verified.'));
-  }, []);
-
-  // Sync to local storage
-  useEffect(() => {
-    if (user) {
+    userRef.current = user;
+    if (user?.uid) {
+      localStorage.setItem('studykit_active_uid', user.uid);
+      localStorage.setItem(getUserStorageKey(user.uid, 'profile'), JSON.stringify(user));
       localStorage.setItem('studykit_user', JSON.stringify(user));
     } else {
+      localStorage.removeItem('studykit_active_uid');
       localStorage.removeItem('studykit_user');
     }
   }, [user]);
 
+  // Persist current collections to scoped storage whenever they change
   useEffect(() => {
-    localStorage.setItem('studykit_docs', JSON.stringify(documents));
-  }, [documents]);
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'docs', documents);
+    }
+  }, [documents, user?.uid]);
 
   useEffect(() => {
-    localStorage.setItem('studykit_summaries', JSON.stringify(summaries));
-  }, [summaries]);
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'summaries', summaries);
+    }
+  }, [summaries, user?.uid]);
 
   useEffect(() => {
-    localStorage.setItem('studykit_quizzes', JSON.stringify(quizzes));
-  }, [quizzes]);
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'quizzes', quizzes);
+    }
+  }, [quizzes, user?.uid]);
 
   useEffect(() => {
-    localStorage.setItem('studykit_decks', JSON.stringify(flashcardDecks));
-  }, [flashcardDecks]);
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'decks', flashcardDecks);
+    }
+  }, [flashcardDecks, user?.uid]);
 
   useEffect(() => {
-    localStorage.setItem('studykit_practice_tests', JSON.stringify(practiceTests));
-  }, [practiceTests]);
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'practice_tests', practiceTests);
+    }
+  }, [practiceTests, user?.uid]);
 
   useEffect(() => {
-    localStorage.setItem('studykit_tasks', JSON.stringify(plannerTasks));
-  }, [plannerTasks]);
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'tasks', plannerTasks);
+    }
+  }, [plannerTasks, user?.uid]);
 
+  // Boot connection check
   useEffect(() => {
-    localStorage.setItem('studykit_chat', JSON.stringify(chatMessages));
-  }, [chatMessages]);
+    testConnection().catch(() => console.log('Firestore connection verified.'));
+  }, []);
+
+  // Helper to load user data from scoped cache and sync with Firestore
+  const loadUserData = async (uid: string, fallbackEmail?: string) => {
+    // 1. Immediately hydrate from local scoped cache for instant responsiveness
+    const cachedDocs = loadUserScopedData<DocumentItem[]>(uid, 'docs', []);
+    const cachedSums = loadUserScopedData<SummaryData[]>(uid, 'summaries', []);
+    const cachedQuizzes = loadUserScopedData<QuizItem[]>(uid, 'quizzes', []);
+    const cachedDecks = loadUserScopedData<FlashcardDeck[]>(uid, 'decks', []);
+    const cachedTests = loadUserScopedData<PracticeTestItem[]>(uid, 'practice_tests', []);
+    const cachedTasks = loadUserScopedData<PlannerTask[]>(uid, 'tasks', []);
+
+    setDocuments(cachedDocs);
+    setSummaries(cachedSums);
+    setQuizzes(cachedQuizzes);
+    setFlashcardDecks(cachedDecks);
+    setPracticeTests(cachedTests);
+    setPlannerTasks(cachedTasks);
+
+    // 2. Query Firestore and merge in background
+    try {
+      // User Profile
+      const userDocRef = doc(db, 'users', uid);
+      const userSnap = await getDoc(userDocRef);
+      if (userSnap.exists()) {
+        const udata = userSnap.data();
+        const fullProfile: UserProfile = {
+          uid,
+          email: udata.email || fallbackEmail || auth.currentUser?.email || '',
+          displayName: udata.displayName || auth.currentUser?.displayName || 'Student',
+          name: udata.name || '',
+          surname: udata.surname || '',
+          university: udata.university || '',
+          matricNo: udata.matricNo || '',
+          department: udata.department || '',
+          totalDocuments: udata.totalDocuments ?? cachedDocs.length,
+          totalSummaries: udata.totalSummaries ?? cachedSums.length,
+          totalQuizzes: udata.totalQuizzes ?? cachedQuizzes.length,
+          averageScore: udata.averageScore ?? 85,
+          flashcardsReviewed: udata.flashcardsReviewed ?? 12,
+          studySessions: udata.studySessions ?? 4,
+          dailyGoalMinutes: udata.dailyGoalMinutes ?? 60,
+          weeklyGoalQuizzes: udata.weeklyGoalQuizzes ?? 5,
+          currentStreak: udata.currentStreak ?? 1,
+          streakFreezes: udata.streakFreezes ?? 0,
+          lastFreezeAwardedAt: udata.lastFreezeAwardedAt ?? 0,
+          lastStudyDate: udata.lastStudyDate || new Date().toISOString(),
+          createdAt: udata.createdAt || new Date().toISOString(),
+        };
+        setUser(fullProfile);
+      }
+
+      // Firestore Documents
+      try {
+        const docsSnap = await getDocs(collection(db, 'users', uid, 'documents'));
+        if (!docsSnap.empty) {
+          const fsDocs = docsSnap.docs.map((d) => d.data() as DocumentItem);
+          const mergedDocsMap = new Map<string, DocumentItem>();
+          cachedDocs.forEach((d) => mergedDocsMap.set(d.id, d));
+          fsDocs.forEach((d) => mergedDocsMap.set(d.id, d));
+          const mergedDocs = Array.from(mergedDocsMap.values());
+          setDocuments(mergedDocs);
+          saveUserScopedData(uid, 'docs', mergedDocs);
+        } else if (cachedDocs.length > 0) {
+          // If Firestore is empty but we have local documents, backup to Firestore
+          for (const d of cachedDocs) {
+            setDoc(doc(db, 'users', uid, 'documents', d.id), d).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.warn('Firestore documents sync notice:', err);
+      }
+
+      // Firestore Summaries
+      try {
+        const sumSnap = await getDocs(collection(db, 'users', uid, 'summaries'));
+        if (!sumSnap.empty) {
+          const fsSums = sumSnap.docs.map((d) => d.data() as SummaryData);
+          const mergedMap = new Map<string, SummaryData>();
+          cachedSums.forEach((s) => mergedMap.set(s.id, s));
+          fsSums.forEach((s) => mergedMap.set(s.id, s));
+          const merged = Array.from(mergedMap.values());
+          setSummaries(merged);
+          saveUserScopedData(uid, 'summaries', merged);
+        } else if (cachedSums.length > 0) {
+          for (const s of cachedSums) {
+            setDoc(doc(db, 'users', uid, 'summaries', s.id), s).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.warn('Firestore summaries sync notice:', err);
+      }
+
+      // Firestore Quizzes
+      try {
+        const quizSnap = await getDocs(collection(db, 'users', uid, 'quizzes'));
+        if (!quizSnap.empty) {
+          const fsQuizzes = quizSnap.docs.map((d) => d.data() as QuizItem);
+          const mergedMap = new Map<string, QuizItem>();
+          cachedQuizzes.forEach((q) => mergedMap.set(q.id, q));
+          fsQuizzes.forEach((q) => mergedMap.set(q.id, q));
+          const merged = Array.from(mergedMap.values());
+          setQuizzes(merged);
+          saveUserScopedData(uid, 'quizzes', merged);
+        } else if (cachedQuizzes.length > 0) {
+          for (const q of cachedQuizzes) {
+            setDoc(doc(db, 'users', uid, 'quizzes', q.id), q).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.warn('Firestore quizzes sync notice:', err);
+      }
+
+      // Firestore Flashcards
+      try {
+        const deckSnap = await getDocs(collection(db, 'users', uid, 'flashcards'));
+        if (!deckSnap.empty) {
+          const fsDecks = deckSnap.docs.map((d) => d.data() as FlashcardDeck);
+          const mergedMap = new Map<string, FlashcardDeck>();
+          cachedDecks.forEach((d) => mergedMap.set(d.id, d));
+          fsDecks.forEach((d) => mergedMap.set(d.id, d));
+          const merged = Array.from(mergedMap.values());
+          setFlashcardDecks(merged);
+          saveUserScopedData(uid, 'decks', merged);
+        } else if (cachedDecks.length > 0) {
+          for (const d of cachedDecks) {
+            setDoc(doc(db, 'users', uid, 'flashcards', d.id), d).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.warn('Firestore flashcards sync notice:', err);
+      }
+
+      // Firestore Practice Tests
+      try {
+        const testSnap = await getDocs(collection(db, 'users', uid, 'practiceTests'));
+        if (!testSnap.empty) {
+          const fsTests = testSnap.docs.map((d) => d.data() as PracticeTestItem);
+          const mergedMap = new Map<string, PracticeTestItem>();
+          cachedTests.forEach((t) => mergedMap.set(t.id, t));
+          fsTests.forEach((t) => mergedMap.set(t.id, t));
+          const merged = Array.from(mergedMap.values());
+          setPracticeTests(merged);
+          saveUserScopedData(uid, 'practice_tests', merged);
+        }
+      } catch (err) {
+        console.warn('Firestore practice tests sync notice:', err);
+      }
+
+      // Firestore Planner Tasks
+      try {
+        const taskSnap = await getDocs(collection(db, 'users', uid, 'plannerTasks'));
+        if (!taskSnap.empty) {
+          const fsTasks = taskSnap.docs.map((d) => d.data() as PlannerTask);
+          const mergedMap = new Map<string, PlannerTask>();
+          cachedTasks.forEach((t) => mergedMap.set(t.id, t));
+          fsTasks.forEach((t) => mergedMap.set(t.id, t));
+          const merged = Array.from(mergedMap.values());
+          setPlannerTasks(merged);
+          saveUserScopedData(uid, 'tasks', merged);
+        }
+      } catch (err) {
+        console.warn('Firestore planner tasks sync notice:', err);
+      }
+    } catch (e) {
+      console.warn('Load user data error:', e);
+    }
+  };
 
   // Listen to Firebase Auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
-        try {
-          const userDocRef = doc(db, 'users', fbUser.uid);
-          const snap = await getDoc(userDocRef);
-          if (snap.exists()) {
-            const data = snap.data();
-            setUser({
-              uid: fbUser.uid,
-              email: fbUser.email || '',
-              displayName: data.displayName || fbUser.displayName || 'Student',
-              name: data.name || '',
-              surname: data.surname || '',
-              university: data.university || '',
-              matricNo: data.matricNo || '',
-              department: data.department || '',
-              totalDocuments: data.totalDocuments || documents.length,
-              totalSummaries: data.totalSummaries || summaries.length,
-              totalQuizzes: data.totalQuizzes || quizzes.length,
-              averageScore: data.averageScore || 85,
-              flashcardsReviewed: data.flashcardsReviewed || 12,
-              studySessions: data.studySessions || 6,
-              dailyGoalMinutes: data.dailyGoalMinutes || 60,
-              weeklyGoalQuizzes: data.weeklyGoalQuizzes || 5,
-              currentStreak: data.currentStreak || 0,
-              lastStudyDate: data.lastStudyDate || new Date().toISOString(),
-            });
-          } else {
-            const newUser: UserProfile = {
-              uid: fbUser.uid,
-              email: fbUser.email || '',
-              displayName: fbUser.displayName || fbUser.email?.split('@')[0] || 'Student',
-              name: '',
-              surname: '',
-              university: '',
-              matricNo: '',
-              department: '',
-              totalDocuments: documents.length,
-              totalSummaries: summaries.length,
-              totalQuizzes: quizzes.length,
-              averageScore: 85,
-              flashcardsReviewed: 12,
-              studySessions: 5,
-              dailyGoalMinutes: 60,
-              weeklyGoalQuizzes: 5,
-              createdAt: new Date().toISOString(),
-              currentStreak: 0,
-              lastStudyDate: new Date().toISOString(),
-            };
-            await setDoc(userDocRef, newUser);
-            setUser(newUser);
-          }
-
-          // Fetch student's private documents from Firestore
-          try {
-            const docsSnap = await getDocs(collection(db, 'users', fbUser.uid, 'documents'));
-            if (!docsSnap.empty) {
-              const loadedDocs = docsSnap.docs.map((d) => d.data() as DocumentItem);
-              setDocuments(loadedDocs);
-            }
-          } catch (e) {
-            console.warn('Could not load Firestore documents:', e);
-          }
-
-          // Fetch student's private summaries from Firestore
-          try {
-            const sumSnap = await getDocs(collection(db, 'users', fbUser.uid, 'summaries'));
-            if (!sumSnap.empty) {
-              const loadedSummaries = sumSnap.docs.map((d) => d.data() as SummaryData);
-              setSummaries(loadedSummaries);
-            }
-          } catch (e) {
-            console.warn('Could not load Firestore summaries:', e);
-          }
-
-          // Fetch student's private quizzes from Firestore
-          try {
-            const quizSnap = await getDocs(collection(db, 'users', fbUser.uid, 'quizzes'));
-            if (!quizSnap.empty) {
-              const loadedQuizzes = quizSnap.docs.map((d) => d.data() as QuizItem);
-              setQuizzes(loadedQuizzes);
-            }
-          } catch (e) {
-            console.warn('Could not load Firestore quizzes:', e);
-          }
-
-          // Fetch student's private flashcard decks from Firestore
-          try {
-            const deckSnap = await getDocs(collection(db, 'users', fbUser.uid, 'flashcards'));
-            if (!deckSnap.empty) {
-              const loadedDecks = deckSnap.docs.map((d) => d.data() as FlashcardDeck);
-              setFlashcardDecks(loadedDecks);
-            }
-          } catch (e) {
-            console.warn('Could not load Firestore flashcards:', e);
-          }
-
-          // Fetch student's private tasks from Firestore
-          try {
-            const taskSnap = await getDocs(collection(db, 'users', fbUser.uid, 'plannerTasks'));
-            if (!taskSnap.empty) {
-              const loadedTasks = taskSnap.docs.map((d) => d.data() as PlannerTask);
-              setPlannerTasks(loadedTasks);
-            }
-          } catch (e) {
-            console.warn('Could not load Firestore planner tasks:', e);
-          }
-        } catch (error) {
-          console.warn('Firestore fetch user profile notice:', error);
-          setUser({
-            uid: fbUser.uid,
-            email: fbUser.email || '',
-            displayName: fbUser.displayName || 'Student',
-            name: '',
-            surname: '',
-            university: '',
-            matricNo: '',
-            department: '',
-            totalDocuments: documents.length,
-            totalSummaries: summaries.length,
-            totalQuizzes: quizzes.length,
-            averageScore: 85,
-            flashcardsReviewed: 12,
-            studySessions: 5,
-            dailyGoalMinutes: 60,
-            weeklyGoalQuizzes: 5,
-            currentStreak: 0,
-            lastStudyDate: new Date().toISOString(),
-          });
+        localStorage.setItem('studykit_active_uid', fbUser.uid);
+        await loadUserData(fbUser.uid, fbUser.email || undefined);
+      } else {
+        // Only clear if no local session is explicitly active
+        const activeUid = localStorage.getItem('studykit_active_uid');
+        if (!activeUid) {
+          setUser(null);
+          setDocuments([]);
+          setSummaries([]);
+          setQuizzes([]);
+          setFlashcardDecks([]);
+          setPracticeTests([]);
+          setPlannerTasks([]);
         }
       }
       setIsLoadingAuth(false);
@@ -373,107 +471,192 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   // Authentication implementations
-  const signIn = async (email: string, pass: string) => {
+  const signIn = async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
+    const normalizedEmail = email.toLowerCase().trim();
+    const registeredAccounts = getRegisteredAccounts();
+    const localAccount = registeredAccounts[normalizedEmail];
+
     try {
-      const cred = await signInWithEmailAndPassword(auth, email, pass);
-      return { success: true };
+      const cred = await signInWithEmailAndPassword(auth, normalizedEmail, pass);
+      if (cred.user) {
+        localStorage.setItem('studykit_active_uid', cred.user.uid);
+        await loadUserData(cred.user.uid, normalizedEmail);
+        return { success: true };
+      }
     } catch (err: any) {
-      console.warn('Firebase Auth sign in failed, falling back to student session:', err);
-      // Fallback local student session so sign-in always succeeds smoothly
-      const fallbackUser: UserProfile = {
-        uid: `student-${Date.now()}`,
-        email,
-        displayName: email.split('@')[0] || 'Student',
-        name: email.split('@')[0] || 'Student',
-        surname: '',
-        university: 'University',
-        matricNo: 'ST-9999',
-        department: 'General',
-        totalDocuments: documents.length,
-        totalSummaries: summaries.length,
-        totalQuizzes: quizzes.length,
-        averageScore: 85,
-        flashcardsReviewed: 15,
-        studySessions: 4,
-        dailyGoalMinutes: 60,
-        weeklyGoalQuizzes: 5,
-        createdAt: new Date().toISOString(),
-        currentStreak: 2,
-        lastStudyDate: new Date().toISOString(),
-      };
-      setUser(fallbackUser);
-      localStorage.setItem('studykit_local_user', JSON.stringify(fallbackUser));
-      return { success: true };
+      console.warn('Firebase Auth sign in notice:', err);
+
+      // Check registered accounts store
+      if (localAccount) {
+        if (localAccount.pass && localAccount.pass !== pass) {
+          return { success: false, error: 'Incorrect password. Please verify your password and try again.' };
+        }
+        const activeUid = localAccount.uid || localAccount.profile.uid || getStableAccountUid(normalizedEmail);
+        localStorage.setItem('studykit_active_uid', activeUid);
+        setUser(localAccount.profile);
+        await loadUserData(activeUid, normalizedEmail);
+        return { success: true };
+      }
+
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        return { success: false, error: 'Incorrect email or password. Please try again or create an account.' };
+      }
+      if (err.code === 'auth/user-not-found') {
+        return { success: false, error: 'No account registered with this email. Please click Sign Up below.' };
+      }
+
+      // Deterministic recovery for existing local data if present
+      const stableUid = getStableAccountUid(normalizedEmail);
+      const existingDocs = loadUserScopedData<DocumentItem[]>(stableUid, 'docs', []);
+      if (existingDocs.length > 0) {
+        const recoveredProfile: UserProfile = {
+          uid: stableUid,
+          email: normalizedEmail,
+          displayName: normalizedEmail.split('@')[0] || 'Student',
+          name: normalizedEmail.split('@')[0] || 'Student',
+          surname: '',
+          university: 'University',
+          matricNo: 'ST-9999',
+          department: 'General',
+          totalDocuments: existingDocs.length,
+          totalSummaries: 0,
+          totalQuizzes: 0,
+          averageScore: 85,
+          flashcardsReviewed: 10,
+          studySessions: 2,
+          dailyGoalMinutes: 60,
+          weeklyGoalQuizzes: 5,
+          createdAt: new Date().toISOString(),
+          currentStreak: 1,
+          lastStudyDate: new Date().toISOString(),
+        };
+        localStorage.setItem('studykit_active_uid', stableUid);
+        setUser(recoveredProfile);
+        await loadUserData(stableUid, normalizedEmail);
+        return { success: true };
+      }
+
+      return { success: false, error: err.message || 'Failed to sign in. Please check your credentials.' };
     }
+    return { success: true };
   };
 
-  const signUp = async (email: string, pass: string, name: string, surname: string, university: string, matricNo: string, department: string) => {
+  const signUp = async (
+    email: string,
+    pass: string,
+    name: string,
+    surname: string,
+    university: string,
+    matricNo: string,
+    department: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const normalizedEmail = email.toLowerCase().trim();
+
     try {
-      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      const cred = await createUserWithEmailAndPassword(auth, normalizedEmail, pass);
       if (auth.currentUser) {
         await fbUpdateProfile(auth.currentUser, { displayName: `${name} ${surname}` });
       }
+
       const newUser: UserProfile = {
         uid: cred.user.uid,
-        email,
+        email: normalizedEmail,
         displayName: `${name} ${surname}`,
         name,
         surname,
         university,
         matricNo,
         department,
-        totalDocuments: documents.length,
-        totalSummaries: summaries.length,
-        totalQuizzes: quizzes.length,
+        totalDocuments: 0,
+        totalSummaries: 0,
+        totalQuizzes: 0,
         averageScore: 0,
         flashcardsReviewed: 0,
         studySessions: 1,
         dailyGoalMinutes: 60,
         weeklyGoalQuizzes: 5,
         createdAt: new Date().toISOString(),
-        currentStreak: 0,
+        currentStreak: 1,
+        streakFreezes: 0,
+        lastFreezeAwardedAt: 0,
         lastStudyDate: new Date().toISOString(),
       };
+
       try {
         await setDoc(doc(db, 'users', cred.user.uid), newUser);
+        await setDoc(doc(db, 'publicStats', cred.user.uid), {
+          displayName: newUser.displayName,
+          currentStreak: newUser.currentStreak,
+        });
       } catch (e) {
-        console.warn('Could not save user profile to Firestore:', e);
+        console.warn('Could not save user profile or publicStats to Firestore:', e);
       }
+
+      saveRegisteredAccount(normalizedEmail, pass, newUser);
+      localStorage.setItem('studykit_active_uid', cred.user.uid);
       setUser(newUser);
+
+      // Clean fresh slate for newly created user
+      setDocuments([]);
+      setSummaries([]);
+      setQuizzes([]);
+      setFlashcardDecks([]);
+      setPracticeTests([]);
+      setPlannerTasks([]);
       return { success: true };
     } catch (err: any) {
-      console.warn('Firebase Auth sign up failed, falling back to local student profile:', err);
-      // Fallback local student session so sign up always goes through successfully
+      console.warn('Firebase Auth sign up notice:', err);
+
+      if (err.code === 'auth/email-already-in-use') {
+        const signinRes = await signIn(normalizedEmail, pass);
+        if (signinRes.success) {
+          return { success: true };
+        }
+        return { success: false, error: 'An account with this email already exists. Please sign in.' };
+      }
+
+      // Offline / Fallback account with deterministic UID
+      const stableUid = getStableAccountUid(normalizedEmail);
       const fallbackUser: UserProfile = {
-        uid: `student-${Date.now()}`,
-        email,
+        uid: stableUid,
+        email: normalizedEmail,
         displayName: `${name} ${surname}`,
         name,
         surname,
         university,
         matricNo,
         department,
-        totalDocuments: documents.length,
-        totalSummaries: summaries.length,
-        totalQuizzes: quizzes.length,
-        averageScore: 85,
-        flashcardsReviewed: 10,
-        studySessions: 3,
+        totalDocuments: 0,
+        totalSummaries: 0,
+        totalQuizzes: 0,
+        averageScore: 0,
+        flashcardsReviewed: 0,
+        studySessions: 1,
         dailyGoalMinutes: 60,
         weeklyGoalQuizzes: 5,
         createdAt: new Date().toISOString(),
         currentStreak: 1,
         lastStudyDate: new Date().toISOString(),
       };
+
+      saveRegisteredAccount(normalizedEmail, pass, fallbackUser);
+      localStorage.setItem('studykit_active_uid', stableUid);
       setUser(fallbackUser);
-      localStorage.setItem('studykit_local_user', JSON.stringify(fallbackUser));
+
+      setDocuments([]);
+      setSummaries([]);
+      setQuizzes([]);
+      setFlashcardDecks([]);
+      setPracticeTests([]);
+      setPlannerTasks([]);
       return { success: true };
     }
   };
 
   const signInDemo = () => {
+    const demoUid = 'demo-student-101';
     const demoUser: UserProfile = {
-      uid: 'demo-student-101',
+      uid: demoUid,
       email: 'student@studykit.edu',
       displayName: 'Alex Rivers',
       name: 'Alex',
@@ -481,26 +664,49 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       university: 'Tech University',
       matricNo: 'ST-101234',
       department: 'Computer Science',
-      totalDocuments: documents.length,
-      totalSummaries: summaries.length,
-      totalQuizzes: quizzes.length,
-      averageScore: 82,
-      flashcardsReviewed: 28,
-      studySessions: 9,
+      totalDocuments: 0,
+      totalSummaries: 0,
+      totalQuizzes: 0,
+      averageScore: 85,
+      flashcardsReviewed: 10,
+      studySessions: 3,
       dailyGoalMinutes: 60,
       weeklyGoalQuizzes: 5,
       createdAt: new Date().toISOString(),
-      currentStreak: 5,
+      currentStreak: 3,
       lastStudyDate: new Date().toISOString(),
     };
+    localStorage.setItem('studykit_active_uid', demoUid);
     setUser(demoUser);
+    loadUserData(demoUid, demoUser.email);
   };
 
   const signOut = async () => {
+    // 1. Snapshot save for current user before tearing down
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'docs', documents);
+      saveUserScopedData(user.uid, 'summaries', summaries);
+      saveUserScopedData(user.uid, 'quizzes', quizzes);
+      saveUserScopedData(user.uid, 'decks', flashcardDecks);
+      saveUserScopedData(user.uid, 'practice_tests', practiceTests);
+      saveUserScopedData(user.uid, 'tasks', plannerTasks);
+    }
+
     try {
       await fbSignOut(auth);
     } catch (e) {}
+
+    // 2. Cleanly wipe in-memory state
     setUser(null);
+    setActiveDoc(null);
+    setDocuments([]);
+    setSummaries([]);
+    setQuizzes([]);
+    setFlashcardDecks([]);
+    setPracticeTests([]);
+    setPlannerTasks([]);
+    localStorage.removeItem('studykit_active_uid');
+    localStorage.removeItem('studykit_user');
   };
 
   const resetPassword = async (email: string) => {
@@ -520,19 +726,106 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updateDoc(doc(db, 'users', auth.currentUser.uid), {
         dailyGoalMinutes: dailyMinutes,
         weeklyGoalQuizzes: weeklyQuizzes,
-      }).catch((e) => console.log('Goal update sync notice'));
+      }).catch(() => {});
+    }
+  };
+
+  const updateActivity = async () => {
+    if (!user) return;
+    const { showToast } = useToast();
+
+    try {
+      const response = await fetch('/api/server-time');
+      const { timestamp } = await response.json();
+      const now = new Date(timestamp);
+      const last = new Date(user.lastStudyDate);
+
+      // Log activity
+      const todayISO = now.toISOString().split('T')[0];
+      const stored = localStorage.getItem('studykit_activity_days');
+      const actMap = stored ? JSON.parse(stored) : {};
+      if (!actMap[todayISO]) actMap[todayISO] = { minutes: 0, quizzes: 0, docs: 0 };
+      actMap[todayISO].minutes += 15; // Log 15 mins for activity
+      localStorage.setItem('studykit_activity_days', JSON.stringify(actMap));
+
+      // 1. Calendar Day Comparison
+      const todayDate = now.toDateString();
+      const lastDate = last.toDateString();
+      if (todayDate === lastDate) return;
+
+      // 2. 24-Hour Window Logic
+      const diffMs = now.getTime() - last.getTime();
+      let newStreak = user.currentStreak;
+      let newFreezes = user.streakFreezes;
+      let lastFreezeAwardedAt = user.lastFreezeAwardedAt;
+
+      // Inactivity handling
+      if (diffMs > 24 * 60 * 60 * 1000) {
+        if (diffMs <= 48 * 60 * 60 * 1000 && newFreezes > 0) {
+          newFreezes -= 1;
+          showToast("Streak saved with freeze!", 'streak');
+        } else {
+          newStreak = 1;
+        }
+      } else {
+        newStreak += 1;
+      }
+
+      // Awarding logic (every 14 days)
+      if (newStreak % 14 === 0 && newStreak !== lastFreezeAwardedAt) {
+          if (newFreezes < 3) {
+            newFreezes += 1;
+            lastFreezeAwardedAt = newStreak;
+            showToast("Streak freeze earned!", 'streak');
+          }
+      }
+
+      const updated = { ...user, currentStreak: newStreak, streakFreezes: newFreezes, lastFreezeAwardedAt, lastStudyDate: now.toISOString() };
+      setUser(updated);
+      
+      // Trigger streak toast
+      if (newStreak > user.currentStreak) {
+        showToast(`Streak maintained: ${newStreak} days!`, 'streak');
+        // Milestone check
+        if (newStreak === 7) showToast("🎉 7-Day Scholar badge earned!", 'streak');
+        else if (newStreak === 14) showToast("🌟 14-Day Consistent badge earned!", 'streak');
+        else if (newStreak === 30) showToast("🏆 Monthly Master badge earned!", 'streak');
+        else if (newStreak === 100) showToast("🏅 Centurion badge earned!", 'streak');
+      }
+
+      if (auth.currentUser) {
+        updateDoc(doc(db, 'users', auth.currentUser.uid), {
+          currentStreak: newStreak,
+          streakFreezes: newFreezes,
+          lastFreezeAwardedAt: lastFreezeAwardedAt,
+          lastStudyDate: now.toISOString(),
+        }).catch(() => {});
+        setDoc(doc(db, 'publicStats', auth.currentUser.uid), {
+          displayName: updated.displayName,
+          currentStreak: newStreak,
+        }).catch(() => {});
+      }
+    } catch (err) {
+      console.warn('Failed to update activity via server time:', err);
     }
   };
 
   // Document Operations
   const addDocument = async (docItem: DocumentItem) => {
-    setDocuments((prev) => [docItem, ...prev]);
+    await updateActivity();
+    const updatedDocs = [docItem, ...documents.filter((d) => d.id !== docItem.id)];
+    setDocuments(updatedDocs);
     setActiveDoc(docItem);
-    if (user && auth.currentUser) {
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'docs', updatedDocs);
+    }
+
+    if (auth.currentUser) {
       try {
         await setDoc(doc(db, 'users', auth.currentUser.uid, 'documents', docItem.id), docItem);
         await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-          totalDocuments: documents.length + 1,
+          totalDocuments: updatedDocs.length,
         });
       } catch (err) {
         console.warn('Firestore doc add sync notice:', err);
@@ -541,11 +834,20 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteDocument = async (id: string) => {
-    setDocuments((prev) => prev.filter((d) => d.id !== id));
+    const updatedDocs = documents.filter((d) => d.id !== id);
+    setDocuments(updatedDocs);
     if (activeDoc?.id === id) setActiveDoc(null);
-    if (user && auth.currentUser) {
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'docs', updatedDocs);
+    }
+
+    if (auth.currentUser) {
       try {
         await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'documents', id));
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+          totalDocuments: updatedDocs.length,
+        });
       } catch (err) {
         console.warn('Firestore doc delete notice:', err);
       }
@@ -554,22 +856,36 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Summary Operations
   const addSummary = async (summary: SummaryData) => {
-    setSummaries((prev) => [summary, ...prev]);
-    if (user) {
-      setUser((prev) => (prev ? { ...prev, totalSummaries: prev.totalSummaries + 1 } : null));
-      if (auth.currentUser) {
-        try {
-          await setDoc(doc(db, 'users', auth.currentUser.uid, 'summaries', summary.id), summary);
-        } catch (err) {
-          console.warn('Firestore summary save notice:', err);
-        }
+    await updateActivity();
+    const updatedSummaries = [summary, ...summaries.filter((s) => s.id !== summary.id)];
+    setSummaries(updatedSummaries);
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'summaries', updatedSummaries);
+      setUser((prev) => (prev ? { ...prev, totalSummaries: updatedSummaries.length } : null));
+    }
+
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'users', auth.currentUser.uid, 'summaries', summary.id), summary);
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+          totalSummaries: updatedSummaries.length,
+        });
+      } catch (err) {
+        console.warn('Firestore summary save notice:', err);
       }
     }
   };
 
   const updateSummary = async (id: string, updated: Partial<SummaryData>) => {
-    setSummaries((prev) => prev.map((s) => (s.id === id ? { ...s, ...updated } : s)));
-    if (user && auth.currentUser) {
+    const updatedSummaries = summaries.map((s) => (s.id === id ? { ...s, ...updated } : s));
+    setSummaries(updatedSummaries);
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'summaries', updatedSummaries);
+    }
+
+    if (auth.currentUser) {
       try {
         await updateDoc(doc(db, 'users', auth.currentUser.uid, 'summaries', id), updated);
       } catch (err) {
@@ -579,10 +895,20 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteSummary = async (id: string) => {
-    setSummaries((prev) => prev.filter((s) => s.id !== id));
-    if (user && auth.currentUser) {
+    const updatedSummaries = summaries.filter((s) => s.id !== id);
+    setSummaries(updatedSummaries);
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'summaries', updatedSummaries);
+      setUser((prev) => (prev ? { ...prev, totalSummaries: updatedSummaries.length } : null));
+    }
+
+    if (auth.currentUser) {
       try {
         await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'summaries', id));
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+          totalSummaries: updatedSummaries.length,
+        });
       } catch (err) {
         console.warn('Firestore summary delete notice:', err);
       }
@@ -591,8 +917,15 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Quiz Operations
   const addQuiz = async (quiz: QuizItem) => {
-    setQuizzes((prev) => [quiz, ...prev]);
-    if (user && auth.currentUser) {
+    await updateActivity();
+    const updatedQuizzes = [quiz, ...quizzes.filter((q) => q.id !== quiz.id)];
+    setQuizzes(updatedQuizzes);
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'quizzes', updatedQuizzes);
+    }
+
+    if (auth.currentUser) {
       try {
         await setDoc(doc(db, 'users', auth.currentUser.uid, 'quizzes', quiz.id), quiz);
       } catch (err) {
@@ -602,12 +935,15 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateQuizScore = async (quizId: string, score: number, questions: any[]) => {
-    setQuizzes((prev) =>
-      prev.map((q) => (q.id === quizId ? { ...q, score, completed: true, questions } : q))
+    const updatedQuizzes = quizzes.map((q) =>
+      q.id === quizId ? { ...q, score, completed: true, questions } : q
     );
-    if (user) {
-      const completedList = quizzes.filter((q) => q.completed || q.id === quizId);
-      const totalScoreSum = completedList.reduce((acc, curr) => acc + (curr.id === quizId ? score : curr.score || 0), 0);
+    setQuizzes(updatedQuizzes);
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'quizzes', updatedQuizzes);
+      const completedList = updatedQuizzes.filter((q) => q.completed);
+      const totalScoreSum = completedList.reduce((acc, curr) => acc + (curr.score || 0), 0);
       const newAverage = Math.round(totalScoreSum / Math.max(completedList.length, 1));
       setUser((prev) =>
         prev
@@ -620,7 +956,8 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           : null
       );
     }
-    if (user && auth.currentUser) {
+
+    if (auth.currentUser) {
       try {
         await updateDoc(doc(db, 'users', auth.currentUser.uid, 'quizzes', quizId), {
           score,
@@ -632,18 +969,30 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteQuiz = async (id: string) => {
-    setQuizzes((prev) => prev.filter((q) => q.id !== id));
-    if (user && auth.currentUser) {
+    const updatedQuizzes = quizzes.filter((q) => q.id !== id);
+    setQuizzes(updatedQuizzes);
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'quizzes', updatedQuizzes);
+    }
+
+    if (auth.currentUser) {
       try {
         await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'quizzes', id));
       } catch (e) {}
     }
   };
 
-  // Flashcards with SM-2 Spaced Repetition Scheduling
+  // Flashcards
   const addFlashcardDeck = async (deck: FlashcardDeck) => {
-    setFlashcardDecks((prev) => [deck, ...prev]);
-    if (user && auth.currentUser) {
+    const updatedDecks = [deck, ...flashcardDecks.filter((d) => d.id !== deck.id)];
+    setFlashcardDecks(updatedDecks);
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'decks', updatedDecks);
+    }
+
+    if (auth.currentUser) {
       try {
         await setDoc(doc(db, 'users', auth.currentUser.uid, 'flashcards', deck.id), deck);
       } catch (e) {}
@@ -651,79 +1000,109 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const rateFlashcard = async (deckId: string, cardId: string, rating: 1 | 2 | 3) => {
-    // SuperMemo-2 Spaced Repetition algorithm:
-    // rating 1: Hard, rating 2: Good, rating 3: Easy
-    setFlashcardDecks((prev) =>
-      prev.map((deck) => {
-        if (deck.id !== deckId) return deck;
-        const updatedCards = deck.cards.map((card) => {
-          if (card.id !== cardId) return card;
+    await updateActivity();
+    const updatedDecks = flashcardDecks.map((deck) => {
+      if (deck.id !== deckId) return deck;
+      const updatedCards = deck.cards.map((card) => {
+        if (card.id !== cardId) return card;
 
-          let newInterval: number;
-          let newRepetition: number;
-          let newEase: number = card.easeFactor;
+        let newInterval: number;
+        let newRepetition: number;
+        let newEase: number = card.easeFactor;
 
-          if (rating === 1) {
-            // Hard / Reset
-            newRepetition = 0;
-            newInterval = 1;
-            newEase = Math.max(1.3, newEase - 0.2);
-          } else if (rating === 2) {
-            // Good
-            if (card.repetition === 0) newInterval = 1;
-            else if (card.repetition === 1) newInterval = 3;
-            else newInterval = Math.round(card.interval * newEase);
-            newRepetition = card.repetition + 1;
-          } else {
-            // Easy
-            if (card.repetition === 0) newInterval = 2;
-            else if (card.repetition === 1) newInterval = 5;
-            else newInterval = Math.round(card.interval * newEase * 1.3);
-            newRepetition = card.repetition + 1;
-            newEase = Math.min(2.8, newEase + 0.15);
-          }
+        if (rating === 1) {
+          newRepetition = 0;
+          newInterval = 1;
+          newEase = Math.max(1.3, newEase - 0.2);
+        } else if (rating === 2) {
+          if (card.repetition === 0) newInterval = 1;
+          else if (card.repetition === 1) newInterval = 3;
+          else newInterval = Math.round(card.interval * newEase);
+          newRepetition = card.repetition + 1;
+        } else {
+          if (card.repetition === 0) newInterval = 2;
+          else if (card.repetition === 1) newInterval = 5;
+          else newInterval = Math.round(card.interval * newEase * 1.3);
+          newRepetition = card.repetition + 1;
+          newEase = Math.min(2.8, newEase + 0.15);
+        }
 
-          const dueDateObj = new Date();
-          dueDateObj.setDate(dueDateObj.getDate() + newInterval);
+        const dueDateObj = new Date();
+        dueDateObj.setDate(dueDateObj.getDate() + newInterval);
 
-          return {
-            ...card,
-            interval: newInterval,
-            repetition: newRepetition,
-            easeFactor: Number(newEase.toFixed(2)),
-            dueDate: dueDateObj.toISOString(),
-            state: (newRepetition >= 3 ? 'mastered' : newRepetition > 0 ? 'review' : 'learning') as any,
-            lastReviewed: new Date().toISOString(),
-          };
-        });
-
-        const masteredCount = updatedCards.filter((c) => c.state === 'mastered').length;
         return {
-          ...deck,
-          cards: updatedCards,
-          cardsLearned: masteredCount,
-          lastStudied: new Date().toISOString(),
+          ...card,
+          interval: newInterval,
+          repetition: newRepetition,
+          easeFactor: Number(newEase.toFixed(2)),
+          dueDate: dueDateObj.toISOString(),
+          state: (newRepetition >= 3 ? 'mastered' : newRepetition > 0 ? 'review' : 'learning') as any,
+          lastReviewed: new Date().toISOString(),
         };
-      })
-    );
+      });
 
-    setUser((prev) =>
-      prev
-        ? {
-            ...prev,
-            flashcardsReviewed: prev.flashcardsReviewed + 1,
-          }
-        : null
-    );
+      const masteredCount = updatedCards.filter((c) => c.state === 'mastered').length;
+      return {
+        ...deck,
+        cards: updatedCards,
+        cardsLearned: masteredCount,
+        lastStudied: new Date().toISOString(),
+      };
+    });
+
+    setFlashcardDecks(updatedDecks);
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'decks', updatedDecks);
+      setUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              flashcardsReviewed: prev.flashcardsReviewed + 1,
+            }
+          : null
+      );
+    }
+
+    if (auth.currentUser) {
+      try {
+        const found = updatedDecks.find((d) => d.id === deckId);
+        if (found) {
+          await setDoc(doc(db, 'users', auth.currentUser.uid, 'flashcards', deckId), found);
+        }
+      } catch (e) {}
+    }
   };
 
   const deleteFlashcardDeck = async (id: string) => {
-    setFlashcardDecks((prev) => prev.filter((d) => d.id !== id));
+    const updated = flashcardDecks.filter((d) => d.id !== id);
+    setFlashcardDecks(updated);
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'decks', updated);
+    }
+
+    if (auth.currentUser) {
+      try {
+        await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'flashcards', id));
+      } catch (e) {}
+    }
   };
 
   // Practice Tests
   const addPracticeTest = async (test: PracticeTestItem) => {
-    setPracticeTests((prev) => [test, ...prev]);
+    const updated = [test, ...practiceTests.filter((t) => t.id !== test.id)];
+    setPracticeTests(updated);
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'practice_tests', updated);
+    }
+
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'users', auth.currentUser.uid, 'practiceTests', test.id), test);
+      } catch (e) {}
+    }
   };
 
   const submitPracticeTest = async (
@@ -732,58 +1111,118 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     score: number,
     timeSpent: number
   ) => {
-    setPracticeTests((prev) =>
-      prev.map((test) => {
-        if (test.id !== testId) return test;
-        const passed = score >= test.passingScore;
-        const updatedQuestions = test.questions.map((q) => {
-          const userAns = answers[q.id] || '';
-          const isCorrect = userAns.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase();
-          return {
-            ...q,
-            userAnswer: userAns,
-            isCorrect,
-          };
-        });
+    await updateActivity();
+    const updatedTests = practiceTests.map((test) => {
+      if (test.id !== testId) return test;
+      const passed = score >= test.passingScore;
+      const updatedQuestions = test.questions.map((q) => {
+        const userAns = answers[q.id] || '';
+        const isCorrect = userAns.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase();
         return {
-          ...test,
-          completed: true,
-          score,
-          passed,
-          timeSpentSeconds: timeSpent,
-          completedAt: new Date().toISOString(),
-          questions: updatedQuestions,
+          ...q,
+          userAnswer: userAns,
+          isCorrect,
         };
-      })
-    );
+      });
+      return {
+        ...test,
+        completed: true,
+        score,
+        passed,
+        timeSpentSeconds: timeSpent,
+        completedAt: new Date().toISOString(),
+        questions: updatedQuestions,
+      };
+    });
 
-    setUser((prev) =>
-      prev
-        ? {
-            ...prev,
-            studySessions: prev.studySessions + 1,
-          }
-        : null
-    );
+    setPracticeTests(updatedTests);
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'practice_tests', updatedTests);
+      setUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              studySessions: prev.studySessions + 1,
+            }
+          : null
+      );
+    }
+
+    if (auth.currentUser) {
+      try {
+        const found = updatedTests.find((t) => t.id === testId);
+        if (found) {
+          await setDoc(doc(db, 'users', auth.currentUser.uid, 'practiceTests', testId), found);
+        }
+      } catch (e) {}
+    }
   };
 
   const deletePracticeTest = async (id: string) => {
-    setPracticeTests((prev) => prev.filter((t) => t.id !== id));
+    const updated = practiceTests.filter((t) => t.id !== id);
+    setPracticeTests(updated);
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'practice_tests', updated);
+    }
+
+    if (auth.currentUser) {
+      try {
+        await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'practiceTests', id));
+      } catch (e) {}
+    }
   };
 
   // Study Planner Tasks
   const addPlannerTask = async (task: PlannerTask) => {
-    setPlannerTasks((prev) => [task, ...prev]);
+    await updateActivity();
+    const updated = [task, ...plannerTasks.filter((t) => t.id !== task.id)];
+    setPlannerTasks(updated);
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'tasks', updated);
+    }
+
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'users', auth.currentUser.uid, 'plannerTasks', task.id), task);
+      } catch (e) {}
+    }
   };
 
   const togglePlannerTask = async (id: string) => {
-    setPlannerTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
-    );
+    await updateActivity();
+    const updated = plannerTasks.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t));
+    setPlannerTasks(updated);
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'tasks', updated);
+    }
+
+    if (auth.currentUser) {
+      try {
+        const found = updated.find((t) => t.id === id);
+        if (found) {
+          await setDoc(doc(db, 'users', auth.currentUser.uid, 'plannerTasks', id), found);
+        }
+      } catch (e) {}
+    }
   };
 
   const deletePlannerTask = async (id: string) => {
-    setPlannerTasks((prev) => prev.filter((t) => t.id !== id));
+    const updated = plannerTasks.filter((t) => t.id !== id);
+    setPlannerTasks(updated);
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'tasks', updated);
+    }
+
+    if (auth.currentUser) {
+      try {
+        await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'plannerTasks', id));
+      } catch (e) {}
+    }
   };
 
   // Chat
@@ -805,8 +1244,8 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     totalSummaries: summaries.length,
     totalQuizzes: completedQuizzes.length,
     averageScore: avgScore,
-    flashcardsReviewed: user?.flashcardsReviewed || 28,
-    studySessions: user?.studySessions || 8,
+    flashcardsReviewed: user?.flashcardsReviewed || 0,
+    studySessions: user?.studySessions || 0,
   };
 
   return (
@@ -823,6 +1262,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         signOut,
         resetPassword,
         updateUserGoals,
+        updateActivity,
         documents,
         addDocument,
         deleteDocument,

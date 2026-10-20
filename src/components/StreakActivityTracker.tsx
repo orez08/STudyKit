@@ -1,33 +1,33 @@
-import React, { useState } from 'react';
-import { Flame, Zap } from 'lucide-react';
+import React from 'react';
+import { Flame, Award, Medal, Star, Trophy } from 'lucide-react';
 import { useStudy } from '@/context/StudyContext';
+
+const BADGES = [
+  { id: 'scholar', name: '7-Day Scholar', minStreak: 7, icon: Award, color: 'text-amber-500', animation: 'animate-bounce' },
+  { id: 'consistent', name: '14-Day Consistent', minStreak: 14, icon: Medal, color: 'text-sky-500', animation: 'animate-pulse' },
+  { id: 'master', name: 'Monthly Master', minStreak: 30, icon: Star, color: 'text-emerald-500', animation: 'animate-bounce' },
+  { id: 'centurion', name: 'Centurion', minStreak: 100, icon: Trophy, color: 'text-violet-500', animation: 'animate-pulse' },
+];
 
 export const StreakActivityTracker: React.FC = () => {
   const { user } = useStudy();
-  const [checkedInToday, setCheckedInToday] = useState(false);
-  const [customStreak, setCustomStreak] = useState<number | null>(null);
 
-  const baseStreak = user?.currentStreak || 4;
-  const currentStreak = customStreak !== null ? customStreak : baseStreak;
+  const currentStreak = user?.currentStreak || 0;
+  const lastStudyDate = user?.lastStudyDate ? new Date(user.lastStudyDate).toDateString() : '';
+  const earnedBadges = BADGES.filter(b => currentStreak >= b.minStreak);
 
-  const days = [
-    { name: 'Mon', hours: 1.5, active: true },
-    { name: 'Tue', hours: 2.0, active: true },
-    { name: 'Wed', hours: 2.5, active: true },
-    { name: 'Thu', hours: 1.8, active: true },
-    { name: 'Fri', hours: 3.0, active: true },
-    { name: 'Sat', hours: checkedInToday ? 2.2 : 0.5, active: checkedInToday },
-    { name: 'Sun', hours: 0.2, active: false },
-  ];
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return {
+      name: d.toLocaleDateString('en-US', { weekday: 'short' }),
+      date: d.toDateString(),
+    };
+  });
 
-  const todayIndex = (new Date().getDay() + 6) % 7; // 0 for Mon, 6 for Sun
+  const todayIndex = 6; // last element is today
 
-  const handleCheckIn = () => {
-    if (!checkedInToday) {
-      setCheckedInToday(true);
-      setCustomStreak(currentStreak + 1);
-    }
-  };
+  if (!user || user.currentStreak === 0) return null;
 
   return (
     <div className="bg-[#0A0A0A] border border-[#1C1C1C] rounded-2xl p-6 shadow-xl space-y-6">
@@ -45,22 +45,24 @@ export const StreakActivityTracker: React.FC = () => {
             </p>
           </div>
         </div>
-        <div className="text-right flex items-center gap-4">
-          <div>
-            <span className="text-2xl font-extrabold text-white font-['Clash_Display']">
-              {currentStreak} Days
-            </span>
-            <p className="text-[10px] text-neutral-400 uppercase tracking-wider">Current Streak</p>
-          </div>
-          {!checkedInToday && (
-            <button
-              onClick={handleCheckIn}
-              className="px-3.5 py-2 bg-white hover:bg-neutral-200 text-black font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Zap className="w-3.5 h-3.5 fill-black" />
-              <span>Check In</span>
-            </button>
-          )}
+        
+        {/* Badges Display */}
+        <div className="flex gap-2">
+            {earnedBadges.map(badge => (
+                <div key={badge.id} className={`p-2 rounded-full bg-neutral-900 border border-neutral-800 ${badge.animation}`} title={badge.name}>
+                    <badge.icon className={`w-5 h-5 ${badge.color}`} />
+                </div>
+            ))}
+        </div>
+
+        <div className="text-right">
+          <span className="text-2xl font-extrabold text-white font-['Clash_Display']">
+            {currentStreak} Days
+          </span>
+          <p className="text-[10px] text-neutral-400 uppercase tracking-wider">Current Streak</p>
+          <p className="text-xs text-sky-400 font-semibold mt-1">
+            ❄️ {user?.streakFreezes || 0} Freezes Available
+          </p>
         </div>
       </div>
 
@@ -69,14 +71,11 @@ export const StreakActivityTracker: React.FC = () => {
         <div className="flex items-end justify-between gap-3 h-36 px-4 bg-[#050505] border border-[#1C1C1C] rounded-xl pt-6 pb-3 streak-chart-container">
           {days.map((item, idx) => {
             const isToday = idx === todayIndex;
-            const isActive = (idx <= todayIndex && idx >= Math.max(0, todayIndex - currentStreak + 1)) || (checkedInToday && isToday) || item.active;
-            const heightPercent = Math.min(100, Math.max(15, (item.hours / 3.5) * 100));
+            const isActive = item.date === lastStudyDate;
+            const heightPercent = isActive ? 80 : 30;
 
             return (
               <div key={item.name} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
-                <span className="text-[10px] font-mono text-neutral-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {item.hours}h
-                </span>
                 <div className="w-full max-w-[36px] bg-[#141414] rounded-t-lg overflow-hidden h-full flex items-end border border-[#222222] streak-bar-track">
                   <div
                     className={`w-full transition-all duration-500 rounded-t-lg ${
