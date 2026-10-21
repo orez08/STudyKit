@@ -137,6 +137,12 @@ export const Leaderboard: React.FC = () => {
                     </span>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
+                        {/* Avatar Image Placeholder */}
+                        <img 
+                          src={(entry as any).avatarUrl || '/src/assets/images/toon_avatar_1_1792583023590.jpg'} 
+                          alt="Avatar" 
+                          className="w-6 h-6 rounded-full border border-[#222]" 
+                        />
                         <span className="text-xs font-medium text-white hover:text-amber-300 transition-colors truncate">
                           {entry.displayName || 'Learner'} {isCurrentUser && '(You)'}
                         </span>

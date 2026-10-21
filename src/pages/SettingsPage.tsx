@@ -111,7 +111,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSignOut }) => {
           </div>
         </div>
 
-        <div className="pt-2 flex items-center justify-between text-xs border-t border-[#2A2A2A]">
+        {/* Avatar Selection Grid */}
+        <div className="pt-4 border-t border-[#2B2B2B]">
+          <label className="text-neutral-400 block mb-3 text-xs">Choose Your Avatar</label>
+          <div className="grid grid-cols-4 gap-3">
+            {[1, 2, 3, 4].map((id) => {
+              const url = `/src/assets/images/toon_avatar_${id}.jpg`;
+              return (
+                <button
+                  key={id}
+                  onClick={() => {}}
+                  className={`p-1 rounded-full border-2 transition-all ${user?.avatarUrl === url ? 'border-[#F2C230] scale-105' : 'border-transparent hover:border-[#333]'}`}
+                >
+                  <img src={url} alt={`Avatar ${id}`} className="w-16 h-16 rounded-full" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="pt-2 flex items-center justify-between text-xs border-t border-[#2A2A2A]">
           <span className="text-neutral-400">Security & Authentication:</span>
           <button
             onClick={handlePasswordReset}
@@ -121,7 +141,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSignOut }) => {
             {isResetting ? 'Sending link...' : 'Send Password Reset Email'}
           </button>
         </div>
-      </div>
+
+
 
       {/* 2. Study Targets */}
       <form onSubmit={handleSaveGoals} className="p-6 rounded-2xl bg-[#1C1C1C] border border-[#2B2B2B] space-y-5">

@@ -20,6 +20,7 @@ export interface UserProfile {
   streakFreezes: number;
   lastFreezeAwardedAt: number;
   lastStudyDate: string; // ISO date
+  avatarUrl?: string;
 }
 
 export interface DocumentItem {

@@ -1,12 +1,11 @@
 {
-  "projectId": "graceful-processor-kggh3",
-  "appId": "1:110576530193:web:7bb87646f52944376e12b0",
-  "apiKey": "AIzaSyASRu7_Xs3T5v1HUJn5rEpLFwgcV2oxIrY",
-  "authDomain": "graceful-processor-kggh3.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-bef29a09-f84c-483d-b025-7fe7bd0ce747",
-  "storageBucket": "graceful-processor-kggh3.firebasestorage.app",
-  "messagingSenderId": "110576530193",
+  "projectId": "gen-lang-client-0276405675",
+  "appId": "1:578126712111:web:fb1694e73465d14fa2e5da",
+  "apiKey": "AIzaSyDAn8-bidDRnHYByAk9YVwHbDRGviG4-wU",
+  "authDomain": "gen-lang-client-0276405675.firebaseapp.com",
+  "storageBucket": "gen-lang-client-0276405675.firebasestorage.app",
+  "messagingSenderId": "578126712111",
   "measurementId": "",
-  "oAuthClientId": "110576530193-1vh06p2r93vf4gkspnqpl6f4fmeetk1f.apps.googleusercontent.com",
+  "oAuthClientId": "578126712111-iqtmv5i3ksv3oqnd37n79ce4vmb67h1h.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }

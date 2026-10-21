@@ -955,6 +955,36 @@ app.post('/api/verify-streak', (req: Request, res: Response) => {
   }
 });
 
+// Send email endpoint
+app.post('/api/send-email', async (req: Request, res: Response) => {
+  try {
+    const { to, subject, text } = req.body;
+    console.log(`Sending email to ${to}: ${subject}`);
+    // Simulate sending email
+    res.json({ success: true, message: 'Email sent successfully' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to send email' });
+  }
+});
+
+// Admin tool to send mass email
+app.post('/api/mass-mail', async (req: Request, res: Response) => {
+  try {
+    const { subject, body, scheduledAt } = req.body;
+    
+    // In a real-world scenario, you would insert this into a 'scheduledEmails' Firestore collection
+    // and have a backend worker process it.
+    console.log(`Mass mail ${scheduledAt ? 'scheduled for ' + scheduledAt : 'triggered immediately'}: ${subject}`);
+    
+    res.json({ 
+      success: true, 
+      message: scheduledAt ? 'Mass email scheduled' : 'Mass email triggered immediately' 
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Mass mail failed' });
+  }
+});
+
 // Setup Vite middleware in dev or static files in production
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';

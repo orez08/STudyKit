@@ -12,6 +12,7 @@ import {
   Users,
   X,
   Award,
+  Trophy,
 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 
@@ -38,6 +39,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({ isOpen, onClose, cur
     { id: 'study-assistant', name: 'Ask Study Kit', icon: MessageSquare },
     { id: 'planner', name: 'Study Planner', icon: CalendarCheck },
     { id: 'streak-badges', name: 'Streak Badges', icon: Award },
+    { id: 'streak-tiers', name: 'Weekly Streak Tiers', icon: Trophy },
     { id: 'settings', name: 'Account Settings', icon: Settings },
   ];
 

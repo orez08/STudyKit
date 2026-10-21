@@ -24,6 +24,8 @@ const StudyAssistantPage = React.lazy(() => import('./pages/StudyAssistantPage')
 const StudyGroupsPage = React.lazy(() => import('./pages/StudyGroupsPage').then((m) => ({ default: m.StudyGroupsPage })));
 const PlannerPage = React.lazy(() => import('./pages/PlannerPage').then((m) => ({ default: m.PlannerPage })));
 const StreakBadgesPage = React.lazy(() => import('./pages/StreakBadgesPage').then((m) => ({ default: m.StreakBadgesPage })));
+const StreakTiersPage = React.lazy(() => import('./pages/StreakTiersPage').then((m) => ({ default: m.StreakTiersPage })));
+const AdminEmailPage = React.lazy(() => import('./pages/AdminEmailPage').then((m) => ({ default: m.AdminEmailPage })));
 const SettingsPage = React.lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const LegalPage = React.lazy(() => import('./pages/LegalPage').then((m) => ({ default: m.LegalPage })));
 
@@ -261,6 +263,8 @@ const AppContent: React.FC = () => {
               {currentView === 'study-assistant' && <StudyAssistantPage />}
               {currentView === 'planner' && <PlannerPage />}
               {currentView === 'streak-badges' && <StreakBadgesPage setCurrentView={setCurrentView} />}
+              {currentView === 'streak-tiers' && <StreakTiersPage />}
+              {currentView === 'admin-email' && <AdminEmailPage />}
               {currentView === 'settings' && (
                 <SettingsPage
                   onSignOut={() => {

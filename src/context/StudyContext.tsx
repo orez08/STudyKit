@@ -606,6 +606,18 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setFlashcardDecks([]);
       setPracticeTests([]);
       setPlannerTasks([]);
+      
+      // Trigger welcome email
+      fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: normalizedEmail,
+          subject: 'Welcome to Study Kit!',
+          text: `Hi ${name}, welcome to Study Kit! We are excited to help you achieve your study goals.`
+        })
+      }).catch(err => console.error('Failed to send welcome email:', err));
+
       return { success: true };
     } catch (err: any) {
       console.warn('Firebase Auth sign up notice:', err);
