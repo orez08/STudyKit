@@ -23,6 +23,7 @@ const PracticeTestsPage = React.lazy(() => import('./pages/PracticeTestsPage').t
 const StudyAssistantPage = React.lazy(() => import('./pages/StudyAssistantPage').then((m) => ({ default: m.StudyAssistantPage })));
 const StudyGroupsPage = React.lazy(() => import('./pages/StudyGroupsPage').then((m) => ({ default: m.StudyGroupsPage })));
 const PlannerPage = React.lazy(() => import('./pages/PlannerPage').then((m) => ({ default: m.PlannerPage })));
+const StreakBadgesPage = React.lazy(() => import('./pages/StreakBadgesPage').then((m) => ({ default: m.StreakBadgesPage })));
 const SettingsPage = React.lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const LegalPage = React.lazy(() => import('./pages/LegalPage').then((m) => ({ default: m.LegalPage })));
 
@@ -259,6 +260,7 @@ const AppContent: React.FC = () => {
               {currentView === 'study-groups' && <StudyGroupsPage />}
               {currentView === 'study-assistant' && <StudyAssistantPage />}
               {currentView === 'planner' && <PlannerPage />}
+              {currentView === 'streak-badges' && <StreakBadgesPage setCurrentView={setCurrentView} />}
               {currentView === 'settings' && (
                 <SettingsPage
                   onSignOut={() => {

@@ -60,18 +60,6 @@ export const StreakActivityTracker: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-3">
-          {/* Quick Badge Preview */}
-          <div className="flex gap-1.5 bg-[#121212] p-1.5 rounded-xl border border-[#222] cursor-pointer" onClick={() => setShowBadgesModal(true)}>
-            {earnedBadges.slice(0, 4).map(badge => (
-              <div key={badge.id} className={`p-1.5 rounded-lg bg-neutral-900 border border-neutral-800 ${badge.animation}`} title={badge.name}>
-                <badge.icon className={`w-4 h-4 ${badge.color}`} />
-              </div>
-            ))}
-            {earnedBadges.length === 0 && (
-              <span className="text-[11px] text-neutral-400 px-2">No badges yet</span>
-            )}
-          </div>
-
           <button
             onClick={() => setShowBadgesModal(true)}
             className="px-3.5 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-semibold text-xs rounded-xl transition-all shadow-sm cursor-pointer flex items-center gap-1.5"

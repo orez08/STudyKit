@@ -13,6 +13,7 @@ import {
   BookOpen,
   FileCheck,
   Users,
+  Award,
 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 
@@ -35,6 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, o
     { id: 'study-groups', name: 'Study Groups', icon: Users },
     { id: 'study-assistant', name: 'Ask Study Kit', icon: MessageSquare },
     { id: 'planner', name: 'Study Planner', icon: CalendarCheck },
+    { id: 'streak-badges', name: 'Streak Badges', icon: Award },
     { id: 'settings', name: 'Account Settings', icon: Settings },
   ];
 

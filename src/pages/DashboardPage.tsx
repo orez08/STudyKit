@@ -16,6 +16,7 @@ import { useStudy } from '@/context/StudyContext';
 import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { StreakActivityTracker } from '@/components/StreakActivityTracker';
 import { Leaderboard } from '@/components/Leaderboard';
+import { StreakMilestoneCelebration } from '@/components/StreakMilestoneCelebration';
 
 interface DashboardPageProps {
   setCurrentView: (view: string) => void;
@@ -108,6 +109,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-8 bg-[#000000]">
+      <StreakMilestoneCelebration />
       {/* Welcome Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#1C1C1C] animate-stagger-1">
         <div>

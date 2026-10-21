@@ -104,6 +104,10 @@ export const Leaderboard: React.FC = () => {
           ) : (
             entries.slice(0, 5).map((entry, idx) => {
               const isCurrentUser = user?.uid === entry.uid;
+              const streakCount = entry.currentStreak || 0;
+              const tierNum = Math.max(1, Math.ceil(streakCount / 10));
+              const badgeLabel = `Tier ${tierNum} (${(tierNum - 1) * 10 + 1}-${tierNum * 10}d)`;
+
               return (
                 <div
                   key={entry.uid}
@@ -115,11 +119,11 @@ export const Leaderboard: React.FC = () => {
                 >
                   <button
                     type="button"
-                    className="flex items-center gap-2.5 cursor-pointer text-left focus:outline-none"
+                    className="flex items-center gap-2.5 cursor-pointer text-left focus:outline-none min-w-0"
                     onClick={() => handleUserClick(entry.uid)}
                   >
                     <span
-                      className={`font-mono text-xs font-semibold tabular-nums ${
+                      className={`font-mono text-xs font-semibold tabular-nums shrink-0 ${
                         idx === 0
                           ? 'text-amber-400'
                           : idx === 1
@@ -131,12 +135,19 @@ export const Leaderboard: React.FC = () => {
                     >
                       {idx + 1}.
                     </span>
-                    <span className="text-xs font-medium text-white hover:text-amber-300 transition-colors">
-                      {entry.displayName || 'Learner'} {isCurrentUser && '(You)'}
-                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-white hover:text-amber-300 transition-colors truncate">
+                          {entry.displayName || 'Learner'} {isCurrentUser && '(You)'}
+                        </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 shrink-0">
+                          🔥 {badgeLabel}
+                        </span>
+                      </div>
+                    </div>
                   </button>
-                  <span className="text-xs text-amber-400 font-bold font-mono tabular-nums">
-                    {entry.currentStreak} Days
+                  <span className="text-xs text-amber-400 font-bold font-mono tabular-nums shrink-0 ml-2">
+                    {streakCount} Days
                   </span>
                 </div>
               );
