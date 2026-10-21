@@ -21,6 +21,7 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  Calculator,
 } from 'lucide-react';
 import { SummaryData } from '../types';
 import { useStudy } from '../context/StudyContext';
@@ -423,6 +424,121 @@ ${summary.revisionChecklist.map((c) => `[ ] ${c}`).join('\n')}
                       <p className="text-neutral-400 text-[11px]"><strong className="text-neutral-300">Units:</strong> {item.units}</p>
                     )}
                   </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* 6B. SOLVED STEM CALCULATIONS & EXERCISES */}
+        {summary.solvedCalculations && summary.solvedCalculations.length > 0 && (
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-[#D97706]/15 border border-[#D97706]/30 flex items-center justify-center text-[#FDE047]">
+                <Calculator className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white font-['Clash_Display']">
+                  Solved STEM Calculations & Quantitative Exercises
+                </h3>
+                <p className="text-xs text-neutral-400">
+                  Step-by-step mathematical, physical, chemical, or technical worked solutions
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {summary.solvedCalculations.map((calc, idx) => (
+                <div
+                  key={idx}
+                  className="p-5 rounded-2xl bg-[#0A0A0A] border border-[#222222] space-y-4 shadow-lg"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#1C1C1C]">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-bold text-[#FDE047] bg-[#141414] px-2 py-0.5 rounded border border-[#2A2A2A]">
+                        Problem #{idx + 1}
+                      </span>
+                      <h4 className="text-sm font-semibold text-white font-['Clash_Display']">
+                        {calc.problemTitle}
+                      </h4>
+                    </div>
+                    {calc.topic && (
+                      <span className="text-[10px] font-semibold text-neutral-400 bg-[#121212] px-2.5 py-1 rounded-full border border-[#262626]">
+                        {calc.topic}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Problem Statement */}
+                  <div className="p-3.5 rounded-xl bg-[#0F0F0F] border border-[#1A1A1A] space-y-1">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-400">
+                      Problem Statement:
+                    </span>
+                    <p className="text-xs text-neutral-200 leading-relaxed font-sans">
+                      {calc.problemStatement}
+                    </p>
+                  </div>
+
+                  {/* Given Data and Governing Formula */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    {calc.givenData && (
+                      <div className="p-3 rounded-xl bg-[#050505] border border-[#1C1C1C] space-y-1">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-[#FDE047]">
+                          Given Data & Units:
+                        </span>
+                        <p className="font-mono text-neutral-300 text-[11px] leading-relaxed">
+                          {calc.givenData}
+                        </p>
+                      </div>
+                    )}
+                    {calc.formula && (
+                      <div className="p-3 rounded-xl bg-[#050505] border border-[#1C1C1C] space-y-1">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-[#FDE047]">
+                          Governing Formula:
+                        </span>
+                        <p className="font-mono text-white text-[11px] font-semibold">
+                          {calc.formula}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Step-by-step Solution */}
+                  {calc.stepByStepSolution && calc.stepByStepSolution.length > 0 && (
+                    <div className="space-y-2">
+                      <span className="text-[11px] uppercase font-bold tracking-wider text-neutral-300 block">
+                        Step-by-Step Derivation & Solution:
+                      </span>
+                      <div className="space-y-1.5 pl-2">
+                        {calc.stepByStepSolution.map((step, sidx) => (
+                          <div
+                            key={sidx}
+                            className="p-2.5 rounded-lg bg-[#0E0E0E] border border-[#1C1C1C] flex items-start gap-3 text-xs font-mono text-neutral-200"
+                          >
+                            <span className="w-5 h-5 rounded-full bg-[#181818] border border-[#262626] text-[#FDE047] text-[10px] flex items-center justify-center shrink-0 font-bold">
+                              {sidx + 1}
+                            </span>
+                            <span className="leading-relaxed pt-0.5">{step}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Final Answer Highlight */}
+                  <div className="p-3.5 rounded-xl bg-gradient-to-r from-[#D97706]/15 via-[#EA580C]/10 to-transparent border border-[#D97706]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-neutral-300">Final Calculated Result:</span>
+                    <span className="font-mono text-sm font-bold text-[#FDE047] bg-black/40 px-3 py-1 rounded-lg border border-[#D97706]/30">
+                      {calc.finalAnswer}
+                    </span>
+                  </div>
+
+                  {/* Explanation / Verification */}
+                  {calc.explanation && (
+                    <p className="text-[11px] text-neutral-400 italic pt-1 border-t border-[#1C1C1C]">
+                      <strong>Analysis:</strong> {calc.explanation}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

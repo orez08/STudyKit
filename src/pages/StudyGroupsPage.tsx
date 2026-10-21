@@ -20,15 +20,20 @@ import {
   Paperclip,
   Send,
   Play,
+  Pause,
+  RotateCcw,
+  Volume2,
   X,
   AlertCircle,
   Check,
+  Download,
 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 import { StudyGroupItem, SharedStudyItem, StudyGroupMessage, GroupJoinRequest } from '../types';
+import { SharedMaterialModal } from '../components/SharedMaterialModal';
 
 export const StudyGroupsPage: React.FC = () => {
-  const { user, summaries, quizzes, flashcardDecks } = useStudy();
+  const { user, summaries, quizzes, flashcardDecks, addSummary, addQuiz, addFlashcardDeck } = useStudy();
 
   const [groups, setGroups] = useState<StudyGroupItem[]>(() => {
     const saved = localStorage.getItem('studykit_study_groups');
@@ -61,10 +66,11 @@ export const StudyGroupsPage: React.FC = () => {
   });
 
   const [activeGroupId, setActiveGroupId] = useState<string>(groups[0]?.id || '');
-  const [activeTab, setActiveTab] = useState<'materials' | 'chat'>('materials');
+  const [activeTab, setActiveTab] = useState<'materials' | 'chat' | 'requests'>('materials');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [viewingSharedItem, setViewingSharedItem] = useState<SharedStudyItem | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   // New Group Form State
@@ -85,10 +91,41 @@ export const StudyGroupsPage: React.FC = () => {
 
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
+  const [isRecordingPaused, setIsRecordingPaused] = useState(false);
+  const [recordedAudioPreview, setRecordedAudioPreview] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const handleSaveSharedToLibrary = (item: SharedStudyItem) => {
+    if (item.type === 'summary') {
+      const clonedSummary = {
+        ...item.data,
+        id: `sum-copy-${Date.now()}`,
+        title: `${item.title} (From Group)`,
+        createdAt: new Date().toISOString(),
+      };
+      addSummary(clonedSummary);
+    } else if (item.type === 'quiz') {
+      const clonedQuiz = {
+        ...item.data,
+        id: `quiz-copy-${Date.now()}`,
+        title: `${item.title} (From Group)`,
+        createdAt: new Date().toISOString(),
+      };
+      addQuiz(clonedQuiz);
+    } else if (item.type === 'flashcard_deck') {
+      const clonedDeck = {
+        ...item.data,
+        id: `deck-copy-${Date.now()}`,
+        title: `${item.title} (From Group)`,
+        createdAt: new Date().toISOString(),
+      };
+      addFlashcardDeck(clonedDeck);
+    }
+  };
 
   const saveGroups = (updated: StudyGroupItem[]) => {
     setGroups(updated);
@@ -333,7 +370,9 @@ export const StudyGroupsPage: React.FC = () => {
   // Voice recording handlers
   const startRecording = async () => {
     try {
+      setRecordedAudioPreview(null);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -349,21 +388,7 @@ export const StudyGroupsPage: React.FC = () => {
         const reader = new FileReader();
         reader.onload = () => {
           const audioBase64 = reader.result as string;
-          const group = groups.find((g) => g.id === activeGroupId);
-          if (!group) return;
-
-          const newMessage: StudyGroupMessage = {
-            id: `msg-${Date.now()}`,
-            senderId: user?.uid || 'user-demo',
-            senderName: user?.displayName || 'Student',
-            type: 'voice',
-            content: 'Voice Note',
-            audioUrl: audioBase64,
-            timestamp: new Date().toISOString(),
-          };
-
-          const updated = groups.map((g) => (g.id === group.id ? { ...g, messages: [...(g.messages || []), newMessage] } : g));
-          saveGroups(updated);
+          setRecordedAudioPreview(audioBase64);
         };
         reader.readAsDataURL(audioBlob);
 
@@ -371,8 +396,9 @@ export const StudyGroupsPage: React.FC = () => {
         stream.getTracks().forEach((track) => track.stop());
       };
 
-      mediaRecorder.start();
+      mediaRecorder.start(200);
       setIsRecording(true);
+      setIsRecordingPaused(false);
       setRecordingTime(0);
       timerRef.current = setInterval(() => {
         setRecordingTime((prev) => prev + 1);
@@ -384,12 +410,71 @@ export const StudyGroupsPage: React.FC = () => {
     }
   };
 
-  const stopRecording = () => {
+  const pauseRecording = () => {
+    if (mediaRecorderRef.current && isRecording && !isRecordingPaused) {
+      mediaRecorderRef.current.pause();
+      setIsRecordingPaused(true);
+      clearInterval(timerRef.current);
+    }
+  };
+
+  const resumeRecording = () => {
+    if (mediaRecorderRef.current && isRecording && isRecordingPaused) {
+      mediaRecorderRef.current.resume();
+      setIsRecordingPaused(false);
+      timerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    }
+  };
+
+  const discardRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {}
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+    }
+    clearInterval(timerRef.current);
+    setIsRecording(false);
+    setIsRecordingPaused(false);
+    setRecordedAudioPreview(null);
+    setRecordingTime(0);
+    audioChunksRef.current = [];
+  };
+
+  const stopRecordingAndPreview = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      setIsRecordingPaused(false);
       clearInterval(timerRef.current);
     }
+  };
+
+  const sendRecordedVoiceNote = () => {
+    if (!recordedAudioPreview) return;
+    const group = groups.find((g) => g.id === activeGroupId);
+    if (!group) return;
+
+    const newMessage: StudyGroupMessage = {
+      id: `msg-${Date.now()}`,
+      senderId: user?.uid || 'user-demo',
+      senderName: user?.displayName || 'Student',
+      type: 'voice',
+      content: `Voice Note (${recordingTime}s)`,
+      audioUrl: recordedAudioPreview,
+      timestamp: new Date().toISOString(),
+    };
+
+    const updated = groups.map((g) => (g.id === group.id ? { ...g, messages: [...(g.messages || []), newMessage] } : g));
+    saveGroups(updated);
+    setRecordedAudioPreview(null);
+    setRecordingTime(0);
+    setMessage('Voice note sent to study group.');
+    setTimeout(() => setMessage(null), 3000);
   };
 
   const activeGroup = groups.find((g) => g.id === activeGroupId) || groups[0];
@@ -549,11 +634,16 @@ export const StudyGroupsPage: React.FC = () => {
                               </div>
                               <h4 className="text-sm font-semibold text-white font-['Clash_Display']">{item.title}</h4>
                             </div>
-                            <div className="pt-2 border-t border-[#1C1C1C] flex items-center justify-between text-xs text-neutral-400">
-                              <span>Shared {new Date(item.sharedAt).toLocaleDateString()}</span>
-                              <span className="text-[#D97706] font-medium flex items-center gap-1">
-                                <span>Access Active</span>
-                              </span>
+                            <div className="pt-2 border-t border-[#1C1C1C] flex items-center justify-between text-xs">
+                              <span className="text-neutral-500">Shared {new Date(item.sharedAt).toLocaleDateString()}</span>
+                              <button
+                                type="button"
+                                onClick={() => setViewingSharedItem(item)}
+                                className="px-3 py-1.5 bg-gradient-to-r from-[#D97706] to-[#EA580C] text-white font-semibold text-[11px] rounded-lg shadow-sm hover:opacity-90 transition-opacity cursor-pointer flex items-center gap-1"
+                              >
+                                <BookOpen className="w-3 h-3" />
+                                <span>Open & Study Material</span>
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -648,19 +738,82 @@ export const StudyGroupsPage: React.FC = () => {
                         </button>
 
                         {isRecording ? (
-                          <div className="flex-1 flex items-center justify-between px-4 py-2 bg-red-950/40 border border-red-800 rounded-xl text-red-200 text-xs">
-                            <span className="flex items-center gap-2 font-mono">
-                              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
-                              Recording Voice Note... {recordingTime}s
-                            </span>
-                            <button
-                              type="button"
-                              onClick={stopRecording}
-                              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg flex items-center gap-1 cursor-pointer"
-                            >
-                              <Square className="w-3 h-3" />
-                              <span>Stop & Send</span>
-                            </button>
+                          <div className="flex-1 flex items-center justify-between px-4 py-2.5 bg-[#0F0F0F] border border-red-800/80 rounded-xl text-white text-xs">
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-1">
+                                <span className="w-1.5 h-4 bg-red-500 animate-pulse rounded-full"></span>
+                                <span className="w-1.5 h-6 bg-red-500 animate-pulse rounded-full [animation-delay:150ms]"></span>
+                                <span className="w-1.5 h-3 bg-red-500 animate-pulse rounded-full [animation-delay:300ms]"></span>
+                                <span className="w-1.5 h-5 bg-red-500 animate-pulse rounded-full [animation-delay:450ms]"></span>
+                              </div>
+                              <span className="font-mono text-red-300 font-semibold">
+                                {isRecordingPaused ? 'Paused' : 'Recording'} · {Math.floor(recordingTime / 60).toString().padStart(2, '0')}:{(recordingTime % 60).toString().padStart(2, '0')} / 05:00
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {isRecordingPaused ? (
+                                <button
+                                  type="button"
+                                  onClick={resumeRecording}
+                                  className="p-1.5 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg transition-colors"
+                                  title="Resume"
+                                >
+                                  <Play className="w-3.5 h-3.5" />
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={pauseRecording}
+                                  className="p-1.5 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg transition-colors"
+                                  title="Pause"
+                                >
+                                  <Pause className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={discardRecording}
+                                className="px-2.5 py-1.5 bg-neutral-800 hover:bg-red-950 text-neutral-300 hover:text-red-300 rounded-lg text-[11px] font-semibold transition-colors"
+                              >
+                                Discard
+                              </button>
+                              <button
+                                type="button"
+                                onClick={stopRecordingAndPreview}
+                                className="px-3 py-1.5 bg-gradient-to-r from-[#D97706] to-[#EA580C] text-white font-semibold rounded-lg text-[11px] flex items-center gap-1 shadow-sm"
+                              >
+                                <Check className="w-3 h-3" />
+                                <span>Preview</span>
+                              </button>
+                            </div>
+                          </div>
+                        ) : recordedAudioPreview ? (
+                          <div className="flex-1 flex items-center justify-between px-4 py-2.5 bg-[#0F0F0F] border border-[#D97706]/50 rounded-xl text-white text-xs">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <Volume2 className="w-4 h-4 text-[#FDE047] shrink-0" />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[11px] font-semibold text-white">Voice Note Ready ({recordingTime}s)</p>
+                                <audio controls src={recordedAudioPreview} className="w-full h-7 mt-1" />
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0 ml-2">
+                              <button
+                                type="button"
+                                onClick={discardRecording}
+                                className="px-2.5 py-1.5 bg-neutral-800 hover:bg-red-950 text-neutral-300 hover:text-red-300 rounded-lg text-[11px] font-semibold"
+                              >
+                                Re-record
+                              </button>
+                              <button
+                                type="button"
+                                onClick={sendRecordedVoiceNote}
+                                className="px-4 py-1.5 bg-gradient-to-r from-[#D97706] to-[#EA580C] text-white font-semibold rounded-lg text-xs flex items-center gap-1 shadow-md"
+                              >
+                                <Send className="w-3.5 h-3.5" />
+                                <span>Send Note</span>
+                              </button>
+                            </div>
                           </div>
                         ) : (
                           <>
@@ -668,7 +821,7 @@ export const StudyGroupsPage: React.FC = () => {
                               type="button"
                               onClick={startRecording}
                               className="p-2.5 rounded-xl bg-[#141414] border border-[#262626] text-[#FDE047] hover:bg-[#1C1C1C] transition-colors cursor-pointer"
-                              title="Record Voice Note"
+                              title="Record Voice Note Studio"
                             >
                               <Mic className="w-4 h-4" />
                             </button>
@@ -973,6 +1126,12 @@ export const StudyGroupsPage: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Shared Material Viewer Modal */}
+      <SharedMaterialModal
+        item={viewingSharedItem}
+        onClose={() => setViewingSharedItem(null)}
+        onSaveToLibrary={handleSaveSharedToLibrary}
+      />
     </div>
   );
 };

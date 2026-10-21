@@ -60,6 +60,17 @@ export interface DateOrFactItem {
   significance: string;
 }
 
+export interface SolvedProblemItem {
+  problemTitle: string;
+  topic?: string;
+  problemStatement: string;
+  givenData?: string;
+  formula?: string;
+  stepByStepSolution: string[];
+  finalAnswer: string;
+  explanation?: string;
+}
+
 export interface SummaryData {
   id: string;
   docId: string;
@@ -73,6 +84,7 @@ export interface SummaryData {
   definitions: DefinitionItem[];
   formulas: FormulaItem[];
   datesAndFacts: DateOrFactItem[];
+  solvedCalculations?: SolvedProblemItem[];
   keyTakeaways: string[];
   revisionChecklist: string[];
   summaryLength: string;

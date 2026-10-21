@@ -13,7 +13,7 @@ import {
   FileCheck,
 } from 'lucide-react';
 import { useStudy } from '@/context/StudyContext';
-import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { StreakActivityTracker } from '@/components/StreakActivityTracker';
 import { Leaderboard } from '@/components/Leaderboard';
 
@@ -41,6 +41,29 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
   React.useEffect(() => {
     (async () => await updateActivity())();
+  }, []);
+
+  const chartContainerRef = React.useRef<HTMLDivElement>(null);
+  const [chartWidth, setChartWidth] = useState(600);
+
+  React.useEffect(() => {
+    if (!chartContainerRef.current) return;
+    const handleResize = () => {
+      if (chartContainerRef.current) {
+        const w = chartContainerRef.current.clientWidth;
+        if (w > 0) setChartWidth(w);
+      }
+    };
+    handleResize();
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0) {
+          setChartWidth(Math.floor(entry.contentRect.width));
+        }
+      }
+    });
+    observer.observe(chartContainerRef.current);
+    return () => observer.disconnect();
   }, []);
 
   const [isEditingGoals, setIsEditingGoals] = useState(false);
@@ -254,13 +277,26 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
       {/* D. ANALYTICS WIDGET */}
       <section className="mt-8 p-6 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] animate-stagger-5 card-hover-lift">
-        <h3 className="text-sm font-bold text-white mb-6">Activity Analytics</h3>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={weeklyAnalyticsData}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <div>
+            <h3 className="text-sm font-bold text-white font-['Clash_Display']">Weekly Activity Analytics</h3>
+            <p className="text-xs text-neutral-400">Streak consistency & daily study hours over the past 7 days</p>
+          </div>
+          <div className="flex items-center gap-4 text-xs font-mono">
+            <span className="flex items-center gap-1.5 text-neutral-300">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#D97706]" /> Active Study Day
+            </span>
+            <span className="flex items-center gap-1.5 text-neutral-500">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#262626]" /> Rest / Broken
+            </span>
+          </div>
+        </div>
+        <div ref={chartContainerRef} className="h-64 w-full overflow-hidden flex items-center justify-center">
+          {chartWidth > 0 && (
+            <BarChart width={chartWidth} height={256} data={weeklyAnalyticsData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#222222" vertical={false} />
-              <XAxis dataKey="day" stroke="#737373" fontSize={11} />
-              <YAxis stroke="#737373" fontSize={11} />
+              <XAxis dataKey="day" stroke="#737373" fontSize={11} tickLine={false} />
+              <YAxis stroke="#737373" fontSize={11} tickLine={false} unit="h" />
               <Tooltip
                 contentStyle={{ backgroundColor: '#141414', border: '1px solid #2E2E2E', borderRadius: '8px' }}
                 itemStyle={{ fontSize: '11px', color: '#FFFFFF' }}
@@ -271,7 +307,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 ))}
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
+          )}
         </div>
       </section>
 

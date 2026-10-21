@@ -28,6 +28,7 @@ import {
   getDocs,
   deleteDoc,
   updateDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 
 interface StudyContextType {
@@ -146,6 +147,7 @@ const loadUserScopedData = <T,>(uid: string, key: string, fallback: T): T => {
 const StudyContext = createContext<StudyContextType | undefined>(undefined);
 
 export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { showToast } = useToast();
   const activeUidInit = localStorage.getItem('studykit_active_uid') || '';
 
   const [user, setUser] = useState<UserProfile | null>(() => {
@@ -155,8 +157,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try { return JSON.parse(scopedUser); } catch {}
       }
     }
-    const legacy = localStorage.getItem('studykit_user');
-    return legacy ? JSON.parse(legacy) : null;
+    return null;
   });
 
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
@@ -528,6 +529,8 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           weeklyGoalQuizzes: 5,
           createdAt: new Date().toISOString(),
           currentStreak: 1,
+          streakFreezes: 0,
+          lastFreezeAwardedAt: 0,
           lastStudyDate: new Date().toISOString(),
         };
         localStorage.setItem('studykit_active_uid', stableUid);
@@ -636,6 +639,8 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         weeklyGoalQuizzes: 5,
         createdAt: new Date().toISOString(),
         currentStreak: 1,
+        streakFreezes: 0,
+        lastFreezeAwardedAt: 0,
         lastStudyDate: new Date().toISOString(),
       };
 
@@ -674,6 +679,8 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       weeklyGoalQuizzes: 5,
       createdAt: new Date().toISOString(),
       currentStreak: 3,
+      streakFreezes: 1,
+      lastFreezeAwardedAt: 0,
       lastStudyDate: new Date().toISOString(),
     };
     localStorage.setItem('studykit_active_uid', demoUid);
@@ -730,83 +737,136 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const triggerMilestoneToast = (streak: number) => {
+    const milestoneBadges: Record<number, { title: string; message: string }> = {
+      7: { title: '7-Day Scholar Badge Unlocked!', message: '7 days of unbroken study momentum. Amazing dedication!' },
+      14: { title: '14-Day Consistent Badge Unlocked!', message: 'Two weeks of consistent mastery. Streak Freeze earned!' },
+      30: { title: 'Monthly Master Badge Unlocked!', message: 'A full 30 days of dedication! Outstanding commitment.' },
+      100: { title: 'Centurion Badge Unlocked!', message: '100 days of relentless learning! Triple-digit study legend.' },
+      150: { title: '150-Day Elite Badge Unlocked!', message: '150 consecutive days of continuous study momentum!' },
+      200: { title: '200-Day Grandmaster Badge Unlocked!', message: '200 days strong! An extraordinary milestone reached.' },
+      250: { title: '250-Day Persistence Badge Unlocked!', message: '250 days of daily growth and academic excellence.' },
+      300: { title: '300-Day Legend Badge Unlocked!', message: '300 days of continuous learning! Elite academic champion.' },
+    };
+
+    let milestone = milestoneBadges[streak];
+    if (!milestone && streak > 300 && streak % 50 === 0) {
+      milestone = {
+        title: `${streak}-Day Master Milestone!`,
+        message: `${streak} consecutive days of study! Legendary persistence.`,
+      };
+    }
+
+    if (milestone) {
+      const awardedKey = `studykit_milestone_${user?.uid || 'guest'}_${streak}`;
+      if (!localStorage.getItem(awardedKey)) {
+        localStorage.setItem(awardedKey, 'true');
+        showToast(milestone.title, milestone.message, 'streak');
+        return;
+      }
+    }
+
+    showToast(
+      `Streak Maintained: ${streak} Days!`,
+      'Great work keeping your daily study momentum active.',
+      'streak'
+    );
+  };
+
+  const notifyDailyTaskCompleted = (taskDesc: string) => {
+    const todayISO = new Date().toISOString().split('T')[0];
+    const dailyKey = `studykit_daily_task_done_${user?.uid || 'guest'}_${todayISO}`;
+    const isFirstTaskToday = !localStorage.getItem(dailyKey);
+
+    if (isFirstTaskToday) {
+      localStorage.setItem(dailyKey, 'true');
+      showToast(
+        'Daily Task Completed!',
+        `${taskDesc} — Daily learning goal accomplished!`,
+        'task'
+      );
+    } else {
+      showToast(
+        'Task Completed',
+        `${taskDesc} completed successfully.`,
+        'task'
+      );
+    }
+  };
+
   const updateActivity = async () => {
     if (!user) return;
-    const { showToast } = useToast();
 
     try {
-      const response = await fetch('/api/server-time');
-      const { timestamp } = await response.json();
-      const now = new Date(timestamp);
-      const last = new Date(user.lastStudyDate);
+      // Call server-side verification hook to recalculate streak based on absolute UTC calendar days
+      const verifyRes = await fetch('/api/verify-streak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentStreak: user.currentStreak,
+          lastStudyDate: user.lastStudyDate,
+          streakFreezes: user.streakFreezes,
+          lastFreezeAwardedAt: user.lastFreezeAwardedAt,
+        }),
+      });
 
-      // Log activity
-      const todayISO = now.toISOString().split('T')[0];
+      const verifyData = await verifyRes.json();
+      if (!verifyData.success) return;
+
+      const todayUTC = new Date(verifyData.lastStudyDate).toISOString().split('T')[0];
       const stored = localStorage.getItem('studykit_activity_days');
       const actMap = stored ? JSON.parse(stored) : {};
-      if (!actMap[todayISO]) actMap[todayISO] = { minutes: 0, quizzes: 0, docs: 0 };
-      actMap[todayISO].minutes += 15; // Log 15 mins for activity
+      if (!actMap[todayUTC]) actMap[todayUTC] = { minutes: 0, quizzes: 0, docs: 0 };
+      actMap[todayUTC].minutes += 15;
       localStorage.setItem('studykit_activity_days', JSON.stringify(actMap));
 
-      // 1. Calendar Day Comparison
-      const todayDate = now.toDateString();
-      const lastDate = last.toDateString();
-      if (todayDate === lastDate) return;
-
-      // 2. 24-Hour Window Logic
-      const diffMs = now.getTime() - last.getTime();
-      let newStreak = user.currentStreak;
-      let newFreezes = user.streakFreezes;
-      let lastFreezeAwardedAt = user.lastFreezeAwardedAt;
-
-      // Inactivity handling
-      if (diffMs > 24 * 60 * 60 * 1000) {
-        if (diffMs <= 48 * 60 * 60 * 1000 && newFreezes > 0) {
-          newFreezes -= 1;
-          showToast("Streak saved with freeze!", 'streak');
-        } else {
-          newStreak = 1;
-        }
-      } else {
-        newStreak += 1;
+      if (!verifyData.streakAdvanced && verifyData.currentStreak === user.currentStreak) {
+        return; // Already recorded for today in UTC
       }
 
-      // Awarding logic (every 14 days)
-      if (newStreak % 14 === 0 && newStreak !== lastFreezeAwardedAt) {
-          if (newFreezes < 3) {
-            newFreezes += 1;
-            lastFreezeAwardedAt = newStreak;
-            showToast("Streak freeze earned!", 'streak');
-          }
-      }
+      const newStreak = verifyData.currentStreak;
+      const newFreezes = verifyData.streakFreezes;
+      const lastFreezeAwardedAt = verifyData.lastFreezeAwardedAt;
 
-      const updated = { ...user, currentStreak: newStreak, streakFreezes: newFreezes, lastFreezeAwardedAt, lastStudyDate: now.toISOString() };
+      const updated = {
+        ...user,
+        currentStreak: newStreak,
+        streakFreezes: newFreezes,
+        lastFreezeAwardedAt,
+        lastStudyDate: verifyData.lastStudyDate,
+      };
       setUser(updated);
-      
-      // Trigger streak toast
-      if (newStreak > user.currentStreak) {
-        showToast(`Streak maintained: ${newStreak} days!`, 'streak');
-        // Milestone check
-        if (newStreak === 7) showToast("🎉 7-Day Scholar badge earned!", 'streak');
-        else if (newStreak === 14) showToast("🌟 14-Day Consistent badge earned!", 'streak');
-        else if (newStreak === 30) showToast("🏆 Monthly Master badge earned!", 'streak');
-        else if (newStreak === 100) showToast("🏅 Centurion badge earned!", 'streak');
+
+      if (verifyData.streakAdvanced) {
+        triggerMilestoneToast(newStreak);
+        if (newFreezes > (user.streakFreezes || 0)) {
+          showToast('Streak Freeze Earned!', 'You earned a bonus Streak Freeze for consistency.', 'streak');
+        }
       }
 
       if (auth.currentUser) {
-        updateDoc(doc(db, 'users', auth.currentUser.uid), {
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
           currentStreak: newStreak,
           streakFreezes: newFreezes,
-          lastFreezeAwardedAt: lastFreezeAwardedAt,
-          lastStudyDate: now.toISOString(),
+          lastFreezeAwardedAt,
+          lastStudyDate: verifyData.lastStudyDate,
+          lastStudyTimestamp: serverTimestamp(),
         }).catch(() => {});
-        setDoc(doc(db, 'publicStats', auth.currentUser.uid), {
+
+        await setDoc(doc(db, 'users', auth.currentUser.uid, 'dailyActivity', todayUTC), {
+          dateUTC: todayUTC,
+          minutesStudied: 15,
+          timestamp: serverTimestamp(),
+        }, { merge: true }).catch(() => {});
+
+        await setDoc(doc(db, 'publicStats', auth.currentUser.uid), {
           displayName: updated.displayName,
           currentStreak: newStreak,
+          lastActivityTimestamp: serverTimestamp(),
         }).catch(() => {});
       }
     } catch (err) {
-      console.warn('Failed to update activity via server time:', err);
+      console.warn('Server-side streak verification warning:', err);
     }
   };
 
@@ -816,6 +876,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const updatedDocs = [docItem, ...documents.filter((d) => d.id !== docItem.id)];
     setDocuments(updatedDocs);
     setActiveDoc(docItem);
+    notifyDailyTaskCompleted(`Uploaded "${docItem.name}"`);
 
     if (user?.uid) {
       saveUserScopedData(user.uid, 'docs', updatedDocs);
@@ -859,6 +920,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await updateActivity();
     const updatedSummaries = [summary, ...summaries.filter((s) => s.id !== summary.id)];
     setSummaries(updatedSummaries);
+    notifyDailyTaskCompleted(`Generated summary "${summary.title}"`);
 
     if (user?.uid) {
       saveUserScopedData(user.uid, 'summaries', updatedSummaries);
@@ -939,6 +1001,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       q.id === quizId ? { ...q, score, completed: true, questions } : q
     );
     setQuizzes(updatedQuizzes);
+    notifyDailyTaskCompleted(`Completed quiz with score ${score}%`);
 
     if (user?.uid) {
       saveUserScopedData(user.uid, 'quizzes', updatedQuizzes);
@@ -1051,6 +1114,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
 
     setFlashcardDecks(updatedDecks);
+    notifyDailyTaskCompleted('Flashcard study review');
 
     if (user?.uid) {
       saveUserScopedData(user.uid, 'decks', updatedDecks);
@@ -1136,6 +1200,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
 
     setPracticeTests(updatedTests);
+    notifyDailyTaskCompleted(`Submitted practice test (${score}%)`);
 
     if (user?.uid) {
       saveUserScopedData(user.uid, 'practice_tests', updatedTests);
@@ -1193,8 +1258,15 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const togglePlannerTask = async (id: string) => {
     await updateActivity();
+    const wasCompleted = plannerTasks.find((t) => t.id === id)?.completed;
     const updated = plannerTasks.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t));
     setPlannerTasks(updated);
+    if (!wasCompleted) {
+      const target = updated.find((t) => t.id === id);
+      if (target) {
+        notifyDailyTaskCompleted(`Planner task "${target.title}"`);
+      }
+    }
 
     if (user?.uid) {
       saveUserScopedData(user.uid, 'tasks', updated);

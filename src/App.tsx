@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StudyProvider, useStudy } from './context/StudyContext';
+import { ToastProvider } from './context/ToastContext';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { Footer } from './components/Footer';
@@ -57,6 +58,15 @@ const AppContent: React.FC = () => {
   const [selectedSummaryId, setSelectedSummaryId] = useState<string | null>(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
+  const isPublicView = [
+    'landing',
+    'features',
+    'how-it-works',
+    'pricing',
+    'privacy',
+    'terms',
+  ].includes(currentView);
+
   React.useEffect(() => {
     const savedTheme = localStorage.getItem('studykit_theme');
     if (savedTheme === 'light') {
@@ -87,19 +97,17 @@ const AppContent: React.FC = () => {
     prevAuthRef.current = isAuthenticated;
   }, [isAuthenticated]);
 
+  React.useEffect(() => {
+    if (!isAuthenticated && !isPublicView) {
+      setCurrentView('landing');
+      openAuthModal('signin');
+    }
+  }, [isAuthenticated, isPublicView]);
+
   const openAuthModal = (mode: 'signin' | 'signup' | 'forgot') => {
     setAuthModalMode(mode);
     setAuthModalOpen(true);
   };
-
-  const isPublicView = [
-    'landing',
-    'features',
-    'how-it-works',
-    'pricing',
-    'privacy',
-    'terms',
-  ].includes(currentView);
 
   // Transition handlers between study tools
   const handleOpenSummary = (summaryId: string) => {
@@ -281,8 +289,10 @@ const AppContent: React.FC = () => {
 
 export default function App() {
   return (
-    <StudyProvider>
-      <AppContent />
-    </StudyProvider>
+    <ToastProvider>
+      <StudyProvider>
+        <AppContent />
+      </StudyProvider>
+    </ToastProvider>
   );
 }

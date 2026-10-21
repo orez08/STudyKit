@@ -1,10 +1,10 @@
-import { StudyProvider } from '@/context/StudyContext';
-import { ToastProvider } from '@/context/ToastContext';
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import './index.css';
 
 createRoot(document.getElementById('root')!).render(
-  <ToastProvider>
-    <StudyProvider>
-      <App />
-    </StudyProvider>
-  </ToastProvider>
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
 );

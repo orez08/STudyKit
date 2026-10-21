@@ -95,10 +95,13 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
     if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
       try {
         setProcessingStatus('extracting');
-        setStatusText('Extracting text and structure page-by-page in your browser...');
-        setUploadProgress(40);
+        setUploadProgress(25);
+        setStatusText('Reading PDF file stream.......25%');
 
-        const extracted = await extractTextFromPdf(file);
+        const extracted = await extractTextFromPdf(file, (pct, status) => {
+          setUploadProgress(pct);
+          setStatusText(status);
+        });
 
         let realText = extracted.text;
         if (!realText || realText.length < 30) {
@@ -118,7 +121,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
         setUploadProgress(100);
         setProcessingStatus('ready');
         setStatusText(
-          `Extracted ${cleanedText.length} characters across ${extracted.pageCount} page(s). Ready to study!`
+          `Extracted ${cleanedText.length} characters across ${extracted.pageCount} page(s). (Ready to study.......100%)`
         );
       } catch (err: any) {
         console.error('PDF extraction failed:', err);
@@ -138,7 +141,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
         });
         setUploadProgress(100);
         setProcessingStatus('ready');
-        setStatusText(`Loaded ${textContent.length} characters of notes.`);
+        setStatusText(`Loaded ${textContent.length} characters of notes. (100%)`);
       };
       reader.readAsText(file);
     }
@@ -273,7 +276,11 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
               onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                fileInputRef.current?.click();
+              }}
               className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
                 dragActive
                   ? 'border-[#D97706] bg-[#D97706]/10'
@@ -298,7 +305,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
 
             {/* Selected File Card with Extraction Status */}
             {selectedFile && (
-              <div className="p-3.5 bg-[#0F0F0F] border border-[#222222] rounded-xl space-y-2">
+              <div className="p-3.5 bg-[#0F0F0F] border border-[#222222] rounded-xl space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-[#D97706]/15 border border-[#D97706]/30 flex items-center justify-center text-[#FDE047] shrink-0">
@@ -308,21 +315,38 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
                       <p className="text-xs font-semibold text-white truncate">{selectedFile.name}</p>
                       <p className="text-[11px] text-neutral-400">
                         {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB ·{' '}
-                        {extractedResult ? `${extractedResult.pageCount} page(s)` : 'Extracting...'}
+                        {extractedResult ? `${extractedResult.pageCount} page(s)` : `Processing... ${uploadProgress}%`}
                       </p>
                     </div>
                   </div>
                   {processingStatus === 'extracting' || processingStatus === 'reading' ? (
-                    <Loader2 className="w-4 h-4 text-[#FDE047] animate-spin shrink-0" />
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-bold text-[#FDE047]">{uploadProgress}%</span>
+                      <Loader2 className="w-4 h-4 text-[#FDE047] animate-spin shrink-0" />
+                    </div>
                   ) : processingStatus === 'ready' ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
+                      <span>100%</span>
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    </div>
                   ) : null}
                 </div>
 
+                {/* Progress bar */}
+                <div className="w-full bg-[#1A1A1A] rounded-full h-2 overflow-hidden border border-[#262626]">
+                  <div
+                    className="bg-gradient-to-r from-[#D97706] to-[#EA580C] h-full rounded-full transition-all duration-300"
+                    style={{ width: `${Math.max(5, uploadProgress)}%` }}
+                  />
+                </div>
+
                 {statusText && (
-                  <p className="text-[11px] text-neutral-300 font-mono pt-1 border-t border-[#1C1C1C]">
-                    {statusText}
-                  </p>
+                  <div className="flex items-center justify-between text-[11px] text-neutral-300 font-mono pt-1 border-t border-[#1C1C1C]">
+                    <span className="truncate">{statusText}</span>
+                    <span className="text-[#FDE047] font-semibold shrink-0 ml-2">
+                      {processingStatus === 'ready' ? 'Ready' : `(uploading.......${uploadProgress}%)`}
+                    </span>
+                  </div>
                 )}
               </div>
             )}

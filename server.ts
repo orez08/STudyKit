@@ -46,7 +46,7 @@ const ai = new GoogleGenAI({
   },
 });
 
-const GEMINI_MODEL = 'gemini-3.1-flash-lite';
+const GEMINI_MODEL = 'gemini-3.8-flash';
 
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {
@@ -245,8 +245,9 @@ Strict requirements:
 5. Important Definitions: exhaustive list of all technical terms with clear, detailed definition and page references.
 6. Important Formulas: mathematical or scientific formulas with formula, detailed description of its usage, variable definitions, and units. If none present in source, return empty array [].
 7. Important Dates, Names, and Facts: key historical/scientific dates, people, and findings. If none, return empty array [].
-8. Key Takeaways: 8 to 12 memorable, insightful takeaways.
-9. Revision Checklist: list of 10 to 15 concrete review check items.
+8. Solved STEM Calculations & Exercises: If the material covers Mathematics, Physics, Chemistry, Engineering, Computing, or any quantitative/scientific subject, provide detailed solved problems in "solvedCalculations" with problem statement, given parameters, governing equation, step-by-step arithmetic/algebraic solution, and final answer with proper units. If non-quantitative, return empty array [].
+9. Key Takeaways: 8 to 12 memorable, insightful takeaways.
+10. Revision Checklist: list of 10 to 15 concrete review check items.
 
 Return strictly a JSON object with this shape:
 {
@@ -278,6 +279,18 @@ Return strictly a JSON object with this shape:
       "description": string,
       "variables": string,
       "units": string
+    }
+  ],
+  "solvedCalculations": [
+    {
+      "problemTitle": string,
+      "topic": string,
+      "problemStatement": string,
+      "givenData": string,
+      "formula": string,
+      "stepByStepSolution": [string],
+      "finalAnswer": string,
+      "explanation": string
     }
   ],
   "datesAndFacts": [
@@ -429,24 +442,35 @@ app.post('/api/ai/quiz', async (req: Request, res: Response) => {
             .join('\n')}\n`
         : '';
 
-      const prompt = `Generate exactly ${currentBatchCount} distinct, high-quality academic interactive quiz questions based on the provided material.
+      const prompt = `Generate exactly ${currentBatchCount} distinct, high-quality academic interactive quiz questions EXCLUSIVELY and STRICTLY grounded in the provided source PDF content. DO NOT include any generic, outside, or unnecessary questions. Every question must be directly derived from specific sentences, data, formulas, or concepts inside the source text.
 
-CRITICAL NON-REPETITION MANDATE:
-- Every question MUST cover a completely different paragraph, concept, formula, mechanism, definition, or topic.
+CRITICAL NON-REPETITION & STRICT GROUNDING MANDATE:
+- Every question MUST cover a completely different paragraph, concept, formula, mechanism, definition, or topic from the PDF.
 - DO NOT repeat concepts, facts, or target vocabulary words that were already asked.
-- Avoid duplicate question templates (e.g. do not ask multiple "What is the primary function of..." or "Where does X take place...").
-- Distribute questions evenly across the beginning, middle, and end of the study material.
+- Avoid duplicate question templates or generic filler questions.
+- Distribute questions progressively through the exact text provided.
 ${alreadyCoveredSummary}
 Question Type preference: ${questionTypes}
 Difficulty: ${difficulty}
 Focus: ${focusArea}
+
+STEM & CALCULATIVE SUBJECT MASTERY:
+- If the content covers Mathematics, Physics, Chemistry, Engineering, Computing, or any quantitative/scientific subject:
+  1. Formulate applied numerical exercises, formula evaluations, and algorithmic/chemical problem-solving questions.
+  2. Use clean mathematical and scientific notations (LaTeX or clean symbols e.g. E = mc^2, F = ma, pH = -log[H+]).
+  3. In the "explanation" field, always provide a complete, numbered step-by-step calculation:
+     - Step 1: Identify given variables & units
+     - Step 2: State the formula or principle
+     - Step 3: Substitute values and calculate step-by-step
+     - Step 4: Final answer with proper SI units
+  4. Options: For multiple choice, construct mathematically plausible distractors representing common student calculation slips (e.g., inverted fractions, sign errors, unit conversion slips).
 
 Requirements:
 - question: clear, academically rigorous question directly supported by the source material
 - type: 'multiple_choice' | 'true_false' | 'fill_in_blank' | 'short_answer'
 - options: array of 4 distinct plausible choices for multiple_choice, or ["True", "False"] for true_false, or empty array [] for fill_in_blank / short_answer.
 - correctAnswer: exact correct answer string matching one of the options (or exact phrase for fill_in_blank)
-- explanation: comprehensive explanation citing why the answer is correct according to the source text
+- explanation: comprehensive explanation citing why the answer is correct according to the source text (with full worked calculations for STEM problems)
 - pageRef: source citation if available in text (e.g. "Page 3")
 - topic: specific, unique subtopic
 
@@ -857,6 +881,77 @@ Return strictly valid JSON:
   } catch (error: any) {
     console.error('Error in /api/ai/planner:', error);
     res.status(500).json({ error: error.message || 'Failed to generate study plan' });
+  }
+});
+
+// Server-side absolute UTC streak verification hook with 24-48h rolling window precision
+app.post('/api/verify-streak', (req: Request, res: Response) => {
+  try {
+    const { currentStreak = 0, lastStudyDate = '', streakFreezes = 0, lastFreezeAwardedAt = 0 } = req.body;
+    const now = new Date();
+    const last = lastStudyDate ? new Date(lastStudyDate) : now;
+    
+    const todayUTC = now.toISOString().split('T')[0];
+    const lastUTC = last.toISOString().split('T')[0];
+
+    if (todayUTC === lastUTC) {
+      return res.json({
+        success: true,
+        currentStreak,
+        streakFreezes,
+        lastFreezeAwardedAt,
+        lastStudyDate: now.toISOString(),
+        streakAdvanced: false,
+      });
+    }
+
+    const diffMs = now.getTime() - last.getTime();
+    const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000));
+    let newStreak = currentStreak;
+    let newFreezes = streakFreezes;
+    let newFreezeAwardedAt = lastFreezeAwardedAt;
+
+    // Precise 24-48 hour rolling window & calendar day check preventing early/late resets
+    if (diffMs > 48 * 60 * 60 * 1000 || diffDays > 2) {
+      if (newFreezes > 0 && diffMs <= 72 * 60 * 60 * 1000) {
+        newFreezes -= 1;
+        newStreak += 1; // Protected by streak freeze within grace window
+      } else {
+        newStreak = 1; // Reset streak if elapsed time exceeds window without freeze
+      }
+    } else if (diffMs >= 24 * 60 * 60 * 1000 || diffDays === 1 || diffDays === 2) {
+      if (diffDays === 2 && newFreezes > 0) {
+        newFreezes -= 1;
+      }
+      newStreak += 1;
+    } else {
+      return res.json({
+        success: true,
+        currentStreak,
+        streakFreezes,
+        lastFreezeAwardedAt,
+        lastStudyDate: now.toISOString(),
+        streakAdvanced: false,
+      });
+    }
+
+    if (newStreak % 14 === 0 && newStreak !== newFreezeAwardedAt) {
+      if (newFreezes < 3) {
+        newFreezes += 1;
+        newFreezeAwardedAt = newStreak;
+      }
+    }
+
+    res.json({
+      success: true,
+      currentStreak: newStreak,
+      streakFreezes: newFreezes,
+      lastFreezeAwardedAt: newFreezeAwardedAt,
+      lastStudyDate: now.toISOString(),
+      streakAdvanced: newStreak > currentStreak,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Streak verification failed' });
   }
 });
 
