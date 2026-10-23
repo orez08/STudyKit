@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Trophy, Sparkles, X, Flame } from 'lucide-react';
-import { useStudy } from '@/context/StudyContext';
+import { useStudy } from '../context/StudyContext';
 
 export const StreakMilestoneCelebration: React.FC = () => {
   const { user } = useStudy();

@@ -14,11 +14,20 @@ import {
   Loader2,
   Share2,
   FileCheck,
+  PenTool,
+  Check,
 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
+import { useToast } from '../context/ToastContext';
 import { QuizItem, QuizQuestion } from '../types';
 import confetti from 'canvas-confetti';
 import { studyCache } from '../lib/cache';
+import {
+  gradeWrittenQuestions,
+  evaluateWrittenAnswerLocal,
+  evaluateSingleObjectiveAnswer,
+  QuestionGradingItem,
+} from '../utils/answerEvaluator';
 
 interface QuizPageProps {
   initialSummaryContext?: any;
@@ -26,6 +35,7 @@ interface QuizPageProps {
 
 export const QuizPage: React.FC<QuizPageProps> = ({ initialSummaryContext }) => {
   const { documents, summaries, quizzes, addQuiz, updateQuizScore } = useStudy();
+  const { showToast } = useToast();
 
   // Mode: 'configure' | 'taking' | 'results' | 'history'
   const [mode, setMode] = useState<'configure' | 'taking' | 'results' | 'history'>(
@@ -50,6 +60,7 @@ export const QuizPage: React.FC<QuizPageProps> = ({ initialSummaryContext }) => 
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [timeRemainingSeconds, setTimeRemainingSeconds] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isEvaluating, setIsEvaluating] = useState(false);
   const [quizProgress, setQuizProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
@@ -241,7 +252,7 @@ export const QuizPage: React.FC<QuizPageProps> = ({ initialSummaryContext }) => 
     for (const q of rawQuestions) {
       if (!q || !q.question || !q.correctAnswer) continue;
       const stem = normalize(q.question);
-      const ans = q.correctAnswer.toLowerCase().trim().replace(/^(the|a|an)\s+/, '');
+      const ans = String(q.correctAnswer || '').toLowerCase().trim().replace(/^(the|a|an)\s+/, '');
 
       if (seenStems.has(stem) || (q.type !== 'true_false' && seenAnswers.has(ans))) {
         continue; // Discard duplicate
@@ -258,7 +269,7 @@ export const QuizPage: React.FC<QuizPageProps> = ({ initialSummaryContext }) => 
       const backup = generateFallbackQuiz(sourceText, docTitle, targetCount + 5);
       for (const bq of backup.questions) {
         const stem = normalize(bq.question);
-        const ans = bq.correctAnswer.toLowerCase().trim().replace(/^(the|a|an)\s+/, '');
+        const ans = String(bq.correctAnswer || '').toLowerCase().trim().replace(/^(the|a|an)\s+/, '');
         if (!seenStems.has(stem) && (bq.type === 'true_false' || !seenAnswers.has(ans))) {
           seenStems.add(stem);
           if (bq.type !== 'true_false') seenAnswers.add(ans);
@@ -405,10 +416,20 @@ export const QuizPage: React.FC<QuizPageProps> = ({ initialSummaryContext }) => 
 
   const handleCheatingAttempt = () => {
     if (cheatingAttempts === 0) {
-      alert("Warning: Copying, pasting, or context switching is prohibited during quizzes. A second violation will automatically terminate your quiz.");
+      showToast(
+        "Integrity Warning",
+        "Copying, pasting, or context switching is prohibited during quizzes. A second violation will automatically terminate your quiz.",
+        "task",
+        6000
+      );
       setCheatingAttempts(1);
     } else {
-      alert("Quiz terminated due to repeated cheating attempts.");
+      showToast(
+        "Quiz Terminated",
+        "Quiz automatically submitted due to repeated integrity violations.",
+        "task",
+        6000
+      );
       handleSubmitQuiz();
     }
   };
@@ -422,42 +443,94 @@ export const QuizPage: React.FC<QuizPageProps> = ({ initialSummaryContext }) => 
 
   const handleSubmitQuiz = async () => {
     if (!activeQuiz) return;
+    setIsEvaluating(true);
 
-    let correctCount = 0;
-    const normalizeAns = (str: string) =>
-      str.trim().toLowerCase().replace(/^[a-d1-4][\.\)\:\-]\s*/, '').trim();
-
-    const evaluatedQuestions = activeQuiz.questions.map((q) => {
-      const userAns = (userAnswers[q.id] || '').trim().toLowerCase();
-      const correctAns = q.correctAnswer.trim().toLowerCase();
-      const isCorrect = userAns === correctAns || (!!userAns && normalizeAns(userAns) === normalizeAns(correctAns));
-      if (isCorrect) correctCount++;
-      return {
-        ...q,
+    try {
+      const gradingItems: QuestionGradingItem[] = activeQuiz.questions.map((q) => ({
+        id: q.id,
+        question: q.question,
         userAnswer: userAnswers[q.id] || '',
-        isCorrect,
-      };
-    });
+        correctAnswer: String(q.correctAnswer || ''),
+        explanation: q.explanation,
+        acceptableKeywords: q.acceptableKeywords || [],
+        type: q.type,
+      }));
 
-    const finalScore = Math.round((correctCount / activeQuiz.questions.length) * 100);
+      // Grade using AI backend & smart local semantic evaluator
+      const grades = await gradeWrittenQuestions(gradingItems);
 
-    await updateQuizScore(activeQuiz.id, finalScore, evaluatedQuestions);
+      let totalPoints = 0;
+      let earnedPoints = 0;
 
-    setActiveQuiz({
-      ...activeQuiz,
-      score: finalScore,
-      completed: true,
-      questions: evaluatedQuestions,
-    });
+      const evaluatedQuestions = activeQuiz.questions.map((q) => {
+        totalPoints += 1;
+        const evaluation = grades[q.id] || evaluateWrittenAnswerLocal(
+          userAnswers[q.id] || '',
+          String(q.correctAnswer || ''),
+          q.explanation,
+          q.acceptableKeywords
+        );
 
-    setMode('results');
+        const isCorrect = evaluation.isCorrect;
+        const score = evaluation.score;
+        if (isCorrect) {
+          earnedPoints += score;
+        }
 
-    if (finalScore >= 70) {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
+        return {
+          ...q,
+          userAnswer: userAnswers[q.id] || '',
+          isCorrect,
+          score,
+          feedback: evaluation.feedback,
+        };
       });
+
+      const finalScore = Math.round((earnedPoints / Math.max(1, activeQuiz.questions.length)) * 100);
+
+      await updateQuizScore(activeQuiz.id, finalScore, evaluatedQuestions);
+
+      setActiveQuiz({
+        ...activeQuiz,
+        score: finalScore,
+        completed: true,
+        questions: evaluatedQuestions,
+      });
+
+      setMode('results');
+
+      if (finalScore >= 70) {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+        });
+      }
+    } catch (err) {
+      console.error('Quiz grading error:', err);
+      // Fallback basic evaluation
+      let correctCount = 0;
+      const evaluatedQuestions = activeQuiz.questions.map((q) => {
+        const userAns = (userAnswers[q.id] || '').trim();
+        const isCorrect = evaluateSingleObjectiveAnswer(userAns, String(q.correctAnswer || ''));
+        if (isCorrect) correctCount++;
+        return {
+          ...q,
+          userAnswer: userAns,
+          isCorrect,
+        };
+      });
+      const finalScore = Math.round((correctCount / activeQuiz.questions.length) * 100);
+      await updateQuizScore(activeQuiz.id, finalScore, evaluatedQuestions);
+      setActiveQuiz({
+        ...activeQuiz,
+        score: finalScore,
+        completed: true,
+        questions: evaluatedQuestions,
+      });
+      setMode('results');
+    } finally {
+      setIsEvaluating(false);
     }
   };
 
@@ -662,6 +735,7 @@ export const QuizPage: React.FC<QuizPageProps> = ({ initialSummaryContext }) => 
                 className="w-full bg-[#050505] border border-[#222222] rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#D97706]"
               >
                 <option value="Multiple Choice Questions">Multiple Choice</option>
+                <option value="Written / Short Answer Questions">Written / Short Answer</option>
                 <option value="True or False">True or False</option>
                 <option value="Mixed Questions">Mixed Question Types</option>
               </select>
@@ -833,7 +907,7 @@ export const QuizPage: React.FC<QuizPageProps> = ({ initialSummaryContext }) => 
             )}
           </div>
 
-          {/* Options */}
+          {/* Options or Written Answer */}
           <div className="space-y-2.5">
             {currentQ.options && currentQ.options.length > 0 ? (
               currentQ.options.map((opt, oIdx) => {
@@ -862,13 +936,17 @@ export const QuizPage: React.FC<QuizPageProps> = ({ initialSummaryContext }) => 
                 );
               })
             ) : (
-              <div>
-                <input
-                  type="text"
-                  placeholder="Type your answer here..."
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-[11px] text-[#FDE047] font-medium">
+                  <PenTool className="w-3.5 h-3.5" />
+                  <span>Written / Short Answer Response (AI will evaluate your answer conceptually)</span>
+                </div>
+                <textarea
+                  rows={4}
+                  placeholder="Type your explanation, definition, or answer here..."
                   value={userAnswers[currentQ.id] || ''}
                   onChange={(e) => handleSelectOption(currentQ.id, e.target.value)}
-                  className="w-full bg-[#050505] border border-[#222222] rounded-lg p-3 text-xs text-white focus:outline-none focus:border-[#D97706]"
+                  className="w-full bg-[#050505] border border-[#222222] rounded-xl p-3.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#D97706] leading-relaxed shadow-inner"
                 />
               </div>
             )}
@@ -900,10 +978,20 @@ export const QuizPage: React.FC<QuizPageProps> = ({ initialSummaryContext }) => 
             ) : (
               <button
                 onClick={handleSubmitQuiz}
-                className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-black text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-md cursor-pointer"
+                disabled={isEvaluating}
+                className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-black text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-md cursor-pointer"
               >
-                <span>Submit Quiz Answers</span>
-                <CheckCircle2 className="w-4 h-4" />
+                {isEvaluating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-black" />
+                    <span>Evaluating Written Answers...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Submit Quiz Answers</span>
+                    <CheckCircle2 className="w-4 h-4" />
+                  </>
+                )}
               </button>
             )}
           </div>

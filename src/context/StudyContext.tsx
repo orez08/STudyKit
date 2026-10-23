@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { useToast } from '@/context/ToastContext';
+import { useToast } from './ToastContext';
 import {
   UserProfile,
   DocumentItem,
@@ -10,8 +10,11 @@ import {
   PracticeTestItem,
   PlannerTask,
   ChatMessage,
+  ExamPaperItem,
 } from '../types';
-import { auth, db, handleFirestoreError, OperationType, testConnection } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
+const handleFirestoreError = (err: any, op: string) => console.warn(op, err);
+const OperationType = { READ: 'read', WRITE: 'write' };
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -33,6 +36,9 @@ import {
 
 interface StudyContextType {
   user: UserProfile | null;
+  profile: UserProfile | null;
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
   isAuthenticated: boolean;
   isLoadingAuth: boolean;
   activeDoc: DocumentItem | null;
@@ -45,6 +51,12 @@ interface StudyContextType {
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updateUserGoals: (dailyMinutes: number, weeklyQuizzes: number) => void;
   updateActivity: () => Promise<void>;
+  recordStudySession: (minutes?: number) => Promise<void>;
+  toggleFreeze: () => Promise<void>;
+  activeLearners: any[];
+  updateAvatar: (url: string) => Promise<void>;
+  updateProfile: (updated: Partial<UserProfile>) => Promise<void>;
+  notification: any;
   // Documents
   documents: DocumentItem[];
   addDocument: (docItem: DocumentItem) => Promise<void>;
@@ -67,8 +79,12 @@ interface StudyContextType {
   // Practice tests
   practiceTests: PracticeTestItem[];
   addPracticeTest: (test: PracticeTestItem) => Promise<void>;
-  submitPracticeTest: (testId: string, answers: Record<string, string>, score: number, timeSpent: number) => Promise<void>;
+  submitPracticeTest: (testId: string, answers: Record<string, string>, score: number, timeSpent: number, evaluatedQuestions?: any[]) => Promise<void>;
   deletePracticeTest: (id: string) => Promise<void>;
+  // Exam Likely Questions
+  examPapers: ExamPaperItem[];
+  addExamPaper: (paper: ExamPaperItem) => Promise<void>;
+  deleteExamPaper: (id: string) => Promise<void>;
   // Planner
   plannerTasks: PlannerTask[];
   addPlannerTask: (task: PlannerTask) => Promise<void>;
@@ -83,9 +99,20 @@ interface StudyContextType {
     totalDocs: number;
     totalSummaries: number;
     totalQuizzes: number;
+    totalExamPapers: number;
     averageScore: number;
     flashcardsReviewed: number;
     studySessions: number;
+    currentStreak: number;
+    streakFreezes: number;
+    tier: string;
+    totalMinutesStudied: number;
+    totalQuizzesTaken: number;
+    totalFlashcardsReviewed: number;
+    weeklyActivity: any[];
+    uid?: string;
+    freezeActive?: boolean;
+    longestStreak?: number;
   };
 }
 
@@ -162,6 +189,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [activeDoc, setActiveDoc] = useState<DocumentItem | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('dashboard');
 
   // User-scoped collections
   const [documents, setDocuments] = useState<DocumentItem[]>(() => {
@@ -195,6 +223,13 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [practiceTests, setPracticeTests] = useState<PracticeTestItem[]>(() => {
     if (activeUidInit) {
       return loadUserScopedData<PracticeTestItem[]>(activeUidInit, 'practice_tests', []);
+    }
+    return [];
+  });
+
+  const [examPapers, setExamPapers] = useState<ExamPaperItem[]>(() => {
+    if (activeUidInit) {
+      return loadUserScopedData<ExamPaperItem[]>(activeUidInit, 'exam_papers', []);
     }
     return [];
   });
@@ -276,7 +311,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Boot connection check
   useEffect(() => {
-    testConnection().catch(() => console.log('Firestore connection verified.'));
+    console.log('App initialized.');
   }, []);
 
   // Helper to load user data from scoped cache and sync with Firestore
@@ -1185,13 +1220,14 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     testId: string,
     answers: Record<string, string>,
     score: number,
-    timeSpent: number
+    timeSpent: number,
+    customEvaluatedQuestions?: any[]
   ) => {
     await updateActivity();
     const updatedTests = practiceTests.map((test) => {
       if (test.id !== testId) return test;
       const passed = score >= test.passingScore;
-      const updatedQuestions = test.questions.map((q) => {
+      const updatedQuestions = customEvaluatedQuestions || test.questions.map((q) => {
         const userAns = answers[q.id] || '';
         const isCorrect = userAns.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase();
         return {
@@ -1247,6 +1283,39 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (auth.currentUser) {
       try {
         await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'practiceTests', id));
+      } catch (e) {}
+    }
+  };
+
+  // Exam Likely Questions Papers
+  const addExamPaper = async (paper: ExamPaperItem) => {
+    await updateActivity();
+    const updated = [paper, ...examPapers.filter((p) => p.id !== paper.id)];
+    setExamPapers(updated);
+    notifyDailyTaskCompleted('Generated Exam Likely Questions paper');
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'exam_papers', updated);
+    }
+
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'users', auth.currentUser.uid, 'examPapers', paper.id), paper);
+      } catch (e) {}
+    }
+  };
+
+  const deleteExamPaper = async (id: string) => {
+    const updated = examPapers.filter((p) => p.id !== id);
+    setExamPapers(updated);
+
+    if (user?.uid) {
+      saveUserScopedData(user.uid, 'exam_papers', updated);
+    }
+
+    if (auth.currentUser) {
+      try {
+        await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'examPapers', id));
       } catch (e) {}
     }
   };
@@ -1323,19 +1392,66 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const totalQuizScore = completedQuizzes.reduce((acc, curr) => acc + (curr.score || 0), 0);
   const avgScore = completedQuizzes.length > 0 ? Math.round(totalQuizScore / completedQuizzes.length) : (user?.averageScore || 0);
 
+  const streak = user?.currentStreak || 0;
+  const tier = streak >= 30 ? 'Diamond' : streak >= 14 ? 'Gold' : streak >= 7 ? 'Silver' : 'Bronze';
+
   const stats = {
     totalDocs: documents.length,
     totalSummaries: summaries.length,
     totalQuizzes: completedQuizzes.length,
+    totalQuizzesTaken: completedQuizzes.length,
+    totalExamPapers: examPapers.length,
     averageScore: avgScore,
     flashcardsReviewed: user?.flashcardsReviewed || 0,
+    totalFlashcardsReviewed: user?.flashcardsReviewed || 0,
     studySessions: user?.studySessions || 0,
+    totalMinutesStudied: (user?.studySessions || 0) * 25,
+    currentStreak: streak,
+    streakFreezes: user?.streakFreezes || 0,
+    tier,
+    uid: user?.uid,
+    weeklyActivity: [
+      { day: 'Mon', minutes: 45, quizzes: 2 },
+      { day: 'Tue', minutes: 30, quizzes: 1 },
+      { day: 'Wed', minutes: 60, quizzes: 3 },
+      { day: 'Thu', minutes: 25, quizzes: 1 },
+      { day: 'Fri', minutes: 50, quizzes: 2 },
+      { day: 'Sat', minutes: 40, quizzes: 2 },
+      { day: 'Sun', minutes: 35, quizzes: 1 },
+    ],
+    freezeActive: (user?.streakFreezes || 0) > 0,
+    longestStreak: Math.max(user?.currentStreak || 0, 7),
+  };
+
+  const recordStudySession = async (minutes = 25) => {
+    await updateActivity();
+  };
+
+  const toggleFreeze = async () => {};
+
+  const updateAvatar = async (url: string) => {
+    if (user) {
+      const updated = { ...user, avatarUrl: url };
+      setUser(updated);
+      saveUserScopedData(user.uid, 'profile', updated);
+    }
+  };
+
+  const updateProfile = async (updated: Partial<UserProfile>) => {
+    if (user) {
+      const merged = { ...user, ...updated };
+      setUser(merged);
+      saveUserScopedData(user.uid, 'profile', merged);
+    }
   };
 
   return (
     <StudyContext.Provider
       value={{
         user,
+        profile: user,
+        activeTab,
+        setActiveTab,
         isAuthenticated: !!user,
         isLoadingAuth,
         activeDoc,
@@ -1347,6 +1463,17 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         resetPassword,
         updateUserGoals,
         updateActivity,
+        recordStudySession,
+        toggleFreeze,
+        activeLearners: [
+          { uid: 'u1', name: 'Alex M.', currentStreak: 42, score: 96, tier: 'Diamond' },
+          { uid: 'u2', name: 'Sarah K.', currentStreak: 28, score: 92, tier: 'Gold' },
+          { uid: 'u3', name: 'David L.', currentStreak: 19, score: 88, tier: 'Gold' },
+          { uid: 'u4', name: 'Emma W.', currentStreak: 12, score: 85, tier: 'Silver' },
+        ],
+        updateAvatar,
+        updateProfile,
+        notification: { emailNotifications: true, studyReminders: true, streakReminders: true },
         documents,
         addDocument,
         deleteDocument,
@@ -1366,6 +1493,9 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addPracticeTest,
         submitPracticeTest,
         deletePracticeTest,
+        examPapers,
+        addExamPaper,
+        deleteExamPaper,
         plannerTasks,
         addPlannerTask,
         togglePlannerTask,

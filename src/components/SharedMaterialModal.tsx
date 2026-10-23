@@ -46,12 +46,12 @@ export const SharedMaterialModal: React.FC<SharedMaterialModalProps> = ({
 
   const handleSave = () => {
     onSaveToLibrary(item);
-    showToast({
-      category: 'task',
-      title: 'Saved to Library!',
-      message: `"${item.title}" has been saved to your private collection.`,
-      durationMs: 4000,
-    });
+    showToast(
+      'Saved to Library!',
+      `"${item.title}" has been saved to your private collection.`,
+      'task',
+      4000
+    );
   };
 
   const handleCopyText = (text: string) => {

@@ -21,6 +21,9 @@ export interface UserProfile {
   lastFreezeAwardedAt: number;
   lastStudyDate: string; // ISO date
   avatarUrl?: string;
+  bio?: string;
+  targetExam?: string;
+  avatarId?: string;
 }
 
 export interface DocumentItem {
@@ -94,30 +97,37 @@ export interface SummaryData {
   createdAt: string;
 }
 
-export type QuestionType = 'multiple_choice' | 'true_false' | 'fill_in_blank' | 'short_answer';
+export type QuestionType = 'multiple_choice' | 'true_false' | 'fill_in_blank' | 'short_answer' | 'written' | 'multiple-choice';
 
 export interface QuizQuestion {
   id: string;
   question: string;
   type: QuestionType;
-  options: string[];
-  correctAnswer: string;
+  options?: string[];
+  correctAnswer?: string | number;
   explanation: string;
   pageRef?: string;
   topic?: string;
   userAnswer?: string;
   isCorrect?: boolean;
+  score?: number; // 0.0 to 1.0
+  feedback?: string;
+  acceptableKeywords?: string[];
+  acceptableAnswers?: string[];
+  keyConcepts?: string[];
 }
 
 export interface QuizItem {
   id: string;
   docId?: string;
   title: string;
-  difficulty: string;
-  totalQuestions: number;
+  topic?: string;
+  format?: string;
+  difficulty?: string;
+  totalQuestions?: number;
   score?: number;
-  completed: boolean;
-  createdAt: string;
+  completed?: boolean;
+  createdAt?: any;
   questions: QuizQuestion[];
   focusArea?: string;
 }
@@ -152,13 +162,16 @@ export interface PracticeTestQuestion {
   id: string;
   number: number;
   question: string;
-  type: 'multiple_choice' | 'true_false' | 'short_answer';
+  type: 'multiple_choice' | 'true_false' | 'short_answer' | 'written';
   options: string[];
   correctAnswer: string;
   explanation: string;
   weight: number;
   userAnswer?: string;
   isCorrect?: boolean;
+  score?: number;
+  feedback?: string;
+  acceptableKeywords?: string[];
 }
 
 export interface PracticeTestItem {
@@ -260,4 +273,94 @@ export interface DailyActivityStat {
   quizzesTaken: number;
   studyHours: number;
 }
+
+export interface StudyDocument {
+  id: string;
+  title: string;
+  category: string;
+  summary: string;
+  keyPoints: string[];
+  readingTimeMinutes: number;
+  dateAdded: string;
+}
+
+export type Quiz = QuizItem;
+
+export interface UserAnswerRecord {
+  questionIndex: number;
+  questionText: string;
+  type: string;
+  userAnswer: any;
+  correctAnswerDisplay: any;
+  isCorrect: boolean;
+  score: number;
+  feedback: string;
+  matchedConcepts?: string[];
+}
+
+export interface StreakBadge {
+  id: string;
+  tierLevel?: number;
+  requiredDays?: number;
+  streakRequired?: number;
+  title: string;
+  name?: string;
+  description: string;
+  iconName?: string;
+  icon?: string;
+  rarity?: string;
+  category?: string;
+  unlockedAt?: string;
+}
+
+export interface UserStats extends Partial<UserProfile> {
+  currentStreak: number;
+  totalDocs?: number;
+  totalSummaries?: number;
+  totalQuizzes?: number;
+  averageScore?: number;
+  flashcardsReviewed?: number;
+  studySessions?: number;
+  totalMinutesStudied?: number;
+  totalQuizzesTaken?: number;
+  totalFlashcardsReviewed?: number;
+  tier?: string;
+  uid?: string;
+  weeklyActivity?: any[];
+}
+
+export type LikelihoodTier = 'Highly Likely' | 'Likely' | 'Possible';
+export type ExamQuestionType = 'multiple_choice' | 'short_answer' | 'theory' | 'calculation';
+
+export interface ExamLikelyQuestion {
+  id: string;
+  questionNumber: number;
+  question: string;
+  type: ExamQuestionType;
+  options?: string[]; // For MCQ
+  correctAnswer: string;
+  marks: number;
+  likelihood: LikelihoodTier;
+  likelihoodReasoning: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  topic: string;
+  examinerTips: string;
+  rubric: string[];
+  stepByStepSolution?: string[];
+}
+
+export interface ExamPaperItem {
+  id: string;
+  docId?: string;
+  docTitle: string;
+  title: string;
+  createdAt: string;
+  totalQuestions: number;
+  totalMarks: number;
+  questions: ExamLikelyQuestion[];
+  instructions?: string;
+  passingMarks?: number;
+  timeAllowedMinutes?: number;
+}
+
 

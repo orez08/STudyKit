@@ -15,22 +15,26 @@ import {
   Users,
   Award,
   Trophy,
+  Mail,
 } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
 
 interface SidebarProps {
-  currentView: string;
-  setCurrentView: (view: string) => void;
-  openUploadModal: () => void;
+  currentView?: string;
+  setCurrentView?: (view: string) => void;
+  openUploadModal?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, openUploadModal }) => {
-  const { user, signOut, activeDoc, stats } = useStudy();
+export const Sidebar: React.FC<SidebarProps> = ({ currentView: propView, setCurrentView: propSetView, openUploadModal }) => {
+  const { user, signOut, activeDoc, stats, activeTab, setActiveTab } = useStudy();
+  const currentView = propView ?? activeTab;
+  const setCurrentView = propSetView ?? setActiveTab;
 
   const navigation = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
     { id: 'library', name: 'My Library', icon: FolderArchive, badge: stats.totalDocs },
     { id: 'summarizer', name: 'PDF Summariser', icon: FileText, highlight: true },
+    { id: 'likely-questions', name: 'Exam Likely Questions', icon: GraduationCap, highlight: true },
     { id: 'quiz', name: 'AI Quiz Generator', icon: HelpCircle },
     { id: 'flashcards', name: 'Flashcards', icon: Layers },
     { id: 'practice-tests', name: 'Practice Tests', icon: GraduationCap },
@@ -39,6 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, o
     { id: 'planner', name: 'Study Planner', icon: CalendarCheck },
     { id: 'streak-badges', name: 'Streak Badges', icon: Award },
     { id: 'streak-tiers', name: 'Weekly Streak Tiers', icon: Trophy },
+    { id: 'admin-email', name: 'Admin Email', icon: Mail },
     { id: 'settings', name: 'Account Settings', icon: Settings },
   ];
 

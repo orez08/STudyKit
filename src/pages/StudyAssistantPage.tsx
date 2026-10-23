@@ -14,9 +14,9 @@ import {
   Loader2,
   HelpCircle,
 } from 'lucide-react';
-import { useStudy } from '@/context/StudyContext';
-import { ChatMessage, DocumentItem } from '@/types';
-import { apiClient } from '@/lib/apiClient';
+import { useStudy } from '../context/StudyContext';
+import { ChatMessage, DocumentItem } from '../types';
+import { apiClient } from '../lib/apiClient';
 
 interface StudyAssistantPageProps {
   initialDocumentContext?: DocumentItem | null;

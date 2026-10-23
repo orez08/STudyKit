@@ -1,6 +1,6 @@
 {
-  "summary":  "Implementation plan for Weekly Streak Tiers page and Gmail-based email messaging system.",
-  "updatedAt":  "2026-10-21T11:16:52.756594811Z",
+  "summary":  "Implementation plan for the Exam Likely Questions feature, detailing the expert examiner AI model endpoint, dual-mode revision and timed mock test interface, likelihood tagging system, export options, and navigation integration.",
+  "updatedAt":  "2026-10-23T08:16:08.481295912Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

@@ -454,6 +454,16 @@ Question Type preference: ${questionTypes}
 Difficulty: ${difficulty}
 Focus: ${focusArea}
 
+QUESTION TYPE INSTRUCTIONS:
+- If Question Type preference contains "Written" or "Short Answer":
+  Every question MUST be of type 'short_answer'. Set "options": []. The question should prompt the student to explain, define, describe, analyze, or calculate in their own words. The "correctAnswer" should be the model academic answer (1-3 sentences or key phrase). Also provide "acceptableKeywords": [array of essential terms, numbers, or concepts required to demonstrate mastery].
+- If Question Type preference is "Mixed Questions":
+  Generate a balanced combination of multiple_choice, true_false, and short_answer (written response) questions.
+- If Question Type preference is "True or False":
+  Every question must be of type 'true_false' with options: ["True", "False"].
+- If Question Type preference is "Multiple Choice":
+  Every question must be of type 'multiple_choice' with 4 distinct options.
+
 STEM & CALCULATIVE SUBJECT MASTERY:
 - If the content covers Mathematics, Physics, Chemistry, Engineering, Computing, or any quantitative/scientific subject:
   1. Formulate applied numerical exercises, formula evaluations, and algorithmic/chemical problem-solving questions.
@@ -463,13 +473,14 @@ STEM & CALCULATIVE SUBJECT MASTERY:
      - Step 2: State the formula or principle
      - Step 3: Substitute values and calculate step-by-step
      - Step 4: Final answer with proper SI units
-  4. Options: For multiple choice, construct mathematically plausible distractors representing common student calculation slips (e.g., inverted fractions, sign errors, unit conversion slips).
+  4. Options: For multiple choice, construct mathematically plausible distractors representing common student calculation slips (e.g., inverted fractions, sign errors, unit conversion slips). For written questions, set options: [] and require student to provide the numerical solution and explanation.
 
 Requirements:
 - question: clear, academically rigorous question directly supported by the source material
-- type: 'multiple_choice' | 'true_false' | 'fill_in_blank' | 'short_answer'
-- options: array of 4 distinct plausible choices for multiple_choice, or ["True", "False"] for true_false, or empty array [] for fill_in_blank / short_answer.
-- correctAnswer: exact correct answer string matching one of the options (or exact phrase for fill_in_blank)
+- type: 'multiple_choice' | 'true_false' | 'short_answer'
+- options: array of 4 distinct plausible choices for multiple_choice, ["True", "False"] for true_false, or empty array [] for short_answer
+- correctAnswer: concise model correct answer
+- acceptableKeywords: array of 2-5 core technical keywords/concepts
 - explanation: comprehensive explanation citing why the answer is correct according to the source text (with full worked calculations for STEM problems)
 - pageRef: source citation if available in text (e.g. "Page 3")
 - topic: specific, unique subtopic
@@ -483,6 +494,7 @@ Return strictly valid JSON object:
       "type": string,
       "options": [string],
       "correctAnswer": string,
+      "acceptableKeywords": [string],
       "explanation": string,
       "pageRef": string,
       "topic": string
@@ -532,6 +544,7 @@ Source text:\n${(content || '').slice(0, 80000)}`;
         .filter((p: string) => p.length > 30);
 
       const existingAnswers = new Set(allQuestions.map((q) => q.correctAnswer.toLowerCase().trim()));
+      const isWrittenRequested = String(questionTypes).toLowerCase().includes('written') || String(questionTypes).toLowerCase().includes('short');
 
       for (let i = 0; i < paragraphs.length && allQuestions.length < requestedCount; i++) {
         const para = paragraphs[i];
@@ -542,28 +555,47 @@ Source text:\n${(content || '').slice(0, 80000)}`;
         const normalizedKey = candidateKeyword.toLowerCase();
         if (existingAnswers.has(normalizedKey)) continue;
 
-        const otherWords = words.filter((w: string) => w.toLowerCase() !== normalizedKey);
-        const distractors = otherWords.slice(0, 3);
-        while (distractors.length < 3) {
-          distractors.push(`Secondary Concept ${distractors.length + 1}`);
-        }
+        if (isWrittenRequested) {
+          const newQ = {
+            id: `q-gen-written-${Date.now()}-${allQuestions.length + 1}`,
+            question: `In your own words, explain the role of "${candidateKeyword}" based on this context: "${para.slice(0, 95)}...".`,
+            type: 'short_answer',
+            options: [],
+            correctAnswer: `${candidateKeyword} is fundamental to: "${para.slice(0, 100)}..."`,
+            acceptableKeywords: [candidateKeyword, words[1] || 'concept'].filter(Boolean),
+            explanation: `Derived from study material: "${para.slice(0, 130)}..."`,
+            pageRef: `Section ${allQuestions.length + 1}`,
+            topic: focusArea || 'Key Concepts',
+          };
+          if (!isQuestionTooSimilar(newQ, allQuestions)) {
+            allQuestions.push(newQ);
+            existingAnswers.add(normalizedKey);
+          }
+        } else {
+          const otherWords = words.filter((w: string) => w.toLowerCase() !== normalizedKey);
+          const distractors = otherWords.slice(0, 3);
+          while (distractors.length < 3) {
+            distractors.push(`Secondary Concept ${distractors.length + 1}`);
+          }
 
-        const options = [candidateKeyword, ...distractors].sort(() => Math.random() - 0.5);
+          const options = [candidateKeyword, ...distractors].sort(() => Math.random() - 0.5);
 
-        const newQ = {
-          id: `q-gen-${Date.now()}-${allQuestions.length + 1}`,
-          question: `In reference to "${para.slice(0, 75)}...", which key term or mechanism is primary?`,
-          type: 'multiple_choice',
-          options,
-          correctAnswer: candidateKeyword,
-          explanation: `Directly derived from the learning material: "${para.slice(0, 110)}..."`,
-          pageRef: `Section ${allQuestions.length + 1}`,
-          topic: focusArea || 'Key Concepts',
-        };
+          const newQ = {
+            id: `q-gen-${Date.now()}-${allQuestions.length + 1}`,
+            question: `In reference to "${para.slice(0, 75)}...", which key term or mechanism is primary?`,
+            type: 'multiple_choice',
+            options,
+            correctAnswer: candidateKeyword,
+            acceptableKeywords: [candidateKeyword],
+            explanation: `Directly derived from the learning material: "${para.slice(0, 110)}..."`,
+            pageRef: `Section ${allQuestions.length + 1}`,
+            topic: focusArea || 'Key Concepts',
+          };
 
-        if (!isQuestionTooSimilar(newQ, allQuestions)) {
-          allQuestions.push(newQ);
-          existingAnswers.add(normalizedKey);
+          if (!isQuestionTooSimilar(newQ, allQuestions)) {
+            allQuestions.push(newQ);
+            existingAnswers.add(normalizedKey);
+          }
         }
       }
     }
@@ -583,6 +615,76 @@ Source text:\n${(content || '').slice(0, 80000)}`;
   } catch (error: any) {
     console.error('Error in /api/ai/quiz:', error);
     res.status(500).json({ error: error.message || 'Failed to generate quiz' });
+  }
+});
+
+// AI Grader for Written and Short-Answer Questions
+app.post('/api/ai/grade-written-answers', async (req: Request, res: Response) => {
+  try {
+    const { items = [] } = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.json({ success: true, grades: [] });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(503).json({ error: 'Gemini API key is not configured.' });
+    }
+
+    const gradingPrompt = `You are an expert, fair, and pedagogically sound academic examiner and professor.
+Your task is to accurately and fairly grade student written/short-answer responses against the question, the reference model answer, and the explanation.
+
+FAIR GRADING GUIDELINES:
+1. Conceptual Understanding Over Verbatim Phrasing:
+   - If the student's written response captures the correct concept, mechanism, definition, or factual principle in their own words (even with synonyms, colloquial phrasing, or different sentence structure), mark it as CORRECT (isCorrect: true, score: 1.0 or 0.8-0.9).
+   - Do NOT mark students wrong simply because they did not copy the reference answer verbatim.
+   - Tolerate minor typos or spelling errors on technical terms (e.g. "mitocondria" for "mitochondria").
+2. Partial Credit:
+   - If the student captured the main point but missed minor details or secondary parts, mark it as CORRECT with partial credit (isCorrect: true, score: 0.7 to 0.8).
+3. Incorrect Answers:
+   - If the student's answer is factually incorrect, confuses distinct concepts, is completely irrelevant, or left blank, mark it as INCORRECT (isCorrect: false, score: 0.0).
+4. Feedback:
+   - Provide a concise 1-2 sentence constructive feedback explaining what was correct or what specific concept was missed.
+
+Questions to grade:
+${JSON.stringify(
+  items.map((it: any) => ({
+    id: it.id,
+    question: it.question,
+    userAnswer: it.userAnswer || '',
+    referenceAnswer: it.correctAnswer,
+    explanation: it.explanation || '',
+    acceptableKeywords: it.acceptableKeywords || [],
+  })),
+  null,
+  2
+)}
+
+Return strictly valid JSON:
+{
+  "grades": [
+    {
+      "id": string,
+      "isCorrect": boolean,
+      "score": number,
+      "feedback": string
+    }
+  ]
+}`;
+
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: gradingPrompt,
+      config: {
+        responseMimeType: 'application/json',
+        temperature: 0.2,
+      },
+    });
+
+    const parsed = extractJSON(response.text || '{}');
+    res.json({ success: true, grades: parsed.grades || [] });
+  } catch (error: any) {
+    console.error('Error in /api/ai/grade-written-answers:', error);
+    res.status(500).json({ error: error.message || 'Failed to grade written answers' });
   }
 });
 
@@ -884,6 +986,210 @@ Return strictly valid JSON:
   }
 });
 
+// 8. AI Exam Likely Questions Generator (Expert Examiner Engine)
+app.post('/api/ai/likely-questions', async (req: Request, res: Response) => {
+  try {
+    const {
+      content,
+      fileBase64,
+      title = 'Exam Paper',
+      numQuestions = 20,
+      targetLevel = 'University / Undergraduate',
+      subject = 'General Studies',
+    } = req.body;
+
+    if (!content && !fileBase64) {
+      return res.status(400).json({ error: 'Document text or file is required to generate likely exam questions.' });
+    }
+
+    const requestedCount = Number(numQuestions) || 20;
+
+    let rawDocumentText = content || '';
+    if (fileBase64 && (!rawDocumentText || rawDocumentText.trim().length < 20)) {
+      try {
+        const buffer = Buffer.from(fileBase64, 'base64');
+        const parsed = await parsePdfBuffer(buffer);
+        if (parsed.text && parsed.text.trim().length >= 20) {
+          rawDocumentText = parsed.text;
+        }
+      } catch (e) {
+        console.warn('PDF buffer parsing fallback in likely questions');
+      }
+    }
+
+    if (process.env.GEMINI_API_KEY) {
+      const systemPrompt = `You are a distinguished University Chief Examiner, Course Professor, and Academic Moderator.
+Your mission is to read and analyze this learning material exhaustively, identify the highest-yield concepts, core definitions, governing formulas, and recurring mechanisms that university lecturers and exam boards set, and construct a rigorous, realistic predictive examination question set.
+
+CRITICAL EXAMINER GUIDELINES:
+1. Prioritize topics that lecturers frequently set for midterm and final exams: core mechanisms, counter-intuitive exceptions, definitions that students often confuse, and multi-step calculations.
+2. Mix difficulty levels: Easy (~30%), Medium (~50%), and Hard (~20%).
+3. Mix question types balanced across:
+   - 'multiple_choice': high-level conceptual questions with tricky, mathematically/logically plausible distractors.
+   - 'short_answer': concise definitions, nomenclature, or direct 2-5 mark questions.
+   - 'theory': comprehensive essay or structured multi-part questions testing depth of understanding (8-15 marks).
+   - 'calculation': applied quantitative problems with clear numerical values, formulas, and units (if quantitative/STEM topic).
+4. Assign a Probability/Likelihood Tag to every single question:
+   - 'Highly Likely': The top 35-40% of concepts that virtually every lecturer tests (core principles, fundamental laws, major mechanisms).
+   - 'Likely': Important supporting concepts, standard textbook derivations, and common exam questions (~40%).
+   - 'Possible': Niche edge-cases, historical context, or high-distinction challenging questions (~20%).
+5. Provide realistic mark weighting (e.g., 2 marks for MCQ/definitions, 4-6 marks for short explanations, 8-15 marks for in-depth theory or calculations).
+6. Provide a complete, explicit "rubric" array specifying how marks are awarded (e.g., "1 Mark: Stating formula", "2 Marks: Proper unit conversion", "2 Marks: Final answer").
+7. Provide "examinerTips" warning students what common mistakes cause marks to be lost.
+8. Strictly NO duplicate questions or repeated question stems.
+
+Return STRICTLY a JSON object matching this schema:
+{
+  "title": string,
+  "instructions": string,
+  "timeAllowedMinutes": number,
+  "totalMarks": number,
+  "totalQuestions": number,
+  "questions": [
+    {
+      "id": string,
+      "questionNumber": number,
+      "question": string,
+      "type": "multiple_choice" | "short_answer" | "theory" | "calculation",
+      "options": [string],
+      "correctAnswer": string,
+      "marks": number,
+      "likelihood": "Highly Likely" | "Likely" | "Possible",
+      "likelihoodReasoning": string,
+      "difficulty": "Easy" | "Medium" | "Hard",
+      "topic": string,
+      "examinerTips": string,
+      "rubric": [string],
+      "stepByStepSolution": [string]
+    }
+  ]
+}`;
+
+      const userPrompt = `Analyze this material titled "${title}" (${subject}) and generate exactly ${requestedCount} distinct, high-yield predicted exam questions.
+Academic Level: ${targetLevel}
+Document text excerpt:\n${rawDocumentText.slice(0, 80000)}`;
+
+      const parts: any[] = [];
+      if (fileBase64 && (!rawDocumentText || rawDocumentText.length < 500)) {
+        parts.push({
+          inlineData: { mimeType: 'application/pdf', data: fileBase64 },
+        });
+      }
+      parts.push({ text: userPrompt });
+
+      const response = await ai.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: parts,
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: 'application/json',
+          temperature: 0.35,
+        },
+      });
+
+      const parsed = extractJSON(response.text || '{}');
+      if (parsed && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+        // Compute total marks
+        const totalMarks = parsed.questions.reduce((sum: number, q: any) => sum + (Number(q.marks) || 5), 0);
+        const result = {
+          title: parsed.title || `${title} - Predicted Examination Paper`,
+          instructions: parsed.instructions || 'Answer all questions. Show all relevant working and state any assumptions made.',
+          timeAllowedMinutes: parsed.timeAllowedMinutes || Math.round(totalMarks * 1.5),
+          totalMarks,
+          totalQuestions: parsed.questions.length,
+          questions: parsed.questions.map((q: any, i: number) => ({
+            ...q,
+            id: q.id || `exam-q-${Date.now()}-${i + 1}`,
+            questionNumber: i + 1,
+            marks: Number(q.marks) || 5,
+            options: Array.isArray(q.options) ? q.options : [],
+            rubric: Array.isArray(q.rubric) ? q.rubric : ['Full marks awarded for clear, rigorous explanation.'],
+            stepByStepSolution: Array.isArray(q.stepByStepSolution) ? q.stepByStepSolution : [],
+          })),
+        };
+
+        return res.json({ success: true, data: result });
+      }
+    }
+
+    // High quality programmatic fallback if API key or generation fallback triggers
+    const paragraphs = rawDocumentText
+      .split(/\n\s*\n|\.\s+/)
+      .map(p => p.trim())
+      .filter(p => p.length > 35);
+
+    const fallbackQuestions: any[] = [];
+    const count = Math.min(requestedCount, Math.max(10, paragraphs.length));
+
+    for (let i = 0; i < count; i++) {
+      const p = paragraphs[i % paragraphs.length] || `Core examination topic ${i + 1}`;
+      const qTypes: Array<'multiple_choice' | 'short_answer' | 'theory' | 'calculation'> = [
+        'theory', 'short_answer', 'multiple_choice', 'calculation'
+      ];
+      const qType = qTypes[i % qTypes.length];
+      const marks = qType === 'multiple_choice' ? 2 : qType === 'short_answer' ? 5 : qType === 'calculation' ? 8 : 12;
+      const likelihoods: Array<'Highly Likely' | 'Likely' | 'Possible'> = [
+        'Highly Likely', 'Highly Likely', 'Likely', 'Likely', 'Possible'
+      ];
+      const likelihood = likelihoods[i % likelihoods.length];
+
+      fallbackQuestions.push({
+        id: `fb-exam-${i + 1}`,
+        questionNumber: i + 1,
+        question: qType === 'theory'
+          ? `Critically examine and discuss the principles and implications of: "${p.slice(0, 90)}...". Provide detailed theoretical evidence.`
+          : qType === 'short_answer'
+          ? `Define and state the key mechanisms governing: "${p.slice(0, 75)}...".`
+          : qType === 'calculation'
+          ? `Using the principles established in "${p.slice(0, 60)}...", evaluate the quantitative parameters and calculate the resultant outcome assuming standard boundary conditions.`
+          : `Which of the following best synthesizes the core principle described in "${p.slice(0, 70)}..."?`,
+        type: qType,
+        options: qType === 'multiple_choice'
+          ? [p.slice(0, 45), 'Alternative secondary hypothesis', 'Inverse parameter distribution', 'None of the above']
+          : [],
+        correctAnswer: `Based on standard examination criteria: ${p.slice(0, 160)}. Candidates must articulate key definitions and clear sequential logic.`,
+        marks,
+        likelihood,
+        likelihoodReasoning: likelihood === 'Highly Likely'
+          ? 'Foundational syllabus objective regularly prioritized by course lecturers and exam panels.'
+          : likelihood === 'Likely'
+          ? 'Standard exam application testing conceptual synthesis.'
+          : 'High-distinction problem designed to test depth of understanding.',
+        difficulty: i % 3 === 0 ? 'Easy' : i % 3 === 1 ? 'Medium' : 'Hard',
+        topic: `Section ${Math.floor(i / 3) + 1}`,
+        examinerTips: 'Examiners look for precise terminology and organized paragraphs rather than vague generalizations.',
+        rubric: [
+          `1-${Math.ceil(marks / 3)} Marks: Definition and accurate premise`,
+          `${Math.ceil(marks / 3) + 1}-${marks - 1} Marks: Structured explanation with citations/formulas`,
+          `${marks} Marks: Thorough synthesis and accurate conclusion`
+        ],
+        stepByStepSolution: qType === 'calculation' ? [
+          'Step 1: State governing formulas and given parameters',
+          'Step 2: Substitute given values with proper SI units',
+          'Step 3: Solve arithmetic equation to obtain final result'
+        ] : [],
+      });
+    }
+
+    const totalMarks = fallbackQuestions.reduce((sum, q) => sum + q.marks, 0);
+
+    return res.json({
+      success: true,
+      data: {
+        title: `${title} - Predicted Examination Paper`,
+        instructions: 'Answer all questions in the sections indicated. Marks allocated for each question are shown in brackets [ ].',
+        timeAllowedMinutes: Math.round(totalMarks * 1.5),
+        totalMarks,
+        totalQuestions: fallbackQuestions.length,
+        questions: fallbackQuestions,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error in /api/ai/likely-questions:', error);
+    res.status(500).json({ error: error.message || 'Failed to generate likely exam questions.' });
+  }
+});
+
 // Server-side absolute UTC streak verification hook with 24-48h rolling window precision
 app.post('/api/verify-streak', (req: Request, res: Response) => {
   try {
@@ -988,11 +1294,12 @@ app.post('/api/mass-mail', async (req: Request, res: Response) => {
 // Setup Vite middleware in dev or static files in production
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';
-  const port = process.env.PORT || 3000;
+  const port = isProd ? (process.env.PORT || 3000) : 3000;
 
   if (!isProd) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
+      configFile: path.resolve(__dirname, 'vite.config.ts'),
       server: { middlewareMode: true },
       appType: 'spa',
     });

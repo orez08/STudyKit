@@ -20,9 +20,9 @@ import { SummaryData, DocumentItem } from '../types';
 import { studyCache } from '../lib/cache';
 
 interface SummarizerPageProps {
-  onGenerateQuiz: (summary: SummaryData) => void;
-  onGenerateFlashcards: (summary: SummaryData) => void;
-  onAskAI: (summary: SummaryData, mode?: 'general' | 'simple') => void;
+  onGenerateQuiz?: (summary: SummaryData) => void;
+  onGenerateFlashcards?: (summary: SummaryData) => void;
+  onAskAI?: (summary: SummaryData, mode?: 'general' | 'simple') => void;
   selectedSummaryId?: string | null;
 }
 
@@ -32,7 +32,10 @@ export const SummarizerPage: React.FC<SummarizerPageProps> = ({
   onAskAI,
   selectedSummaryId,
 }) => {
-  const { documents, summaries, addSummary, activeDoc, setActiveDoc } = useStudy();
+  const { documents, summaries, addSummary, activeDoc, setActiveDoc, setActiveTab } = useStudy();
+  const handleQuiz = onGenerateQuiz || (() => setActiveTab('quiz'));
+  const handleFlashcards = onGenerateFlashcards || (() => setActiveTab('flashcards'));
+  const handleAskAI = onAskAI || (() => setActiveTab('study-assistant'));
 
   // Selected document to summarize
   const [chosenDocId, setChosenDocId] = useState<string>(activeDoc?.id || documents[0]?.id || '');

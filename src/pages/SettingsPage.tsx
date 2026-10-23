@@ -1,129 +1,155 @@
 import React, { useState } from 'react';
-import {
-  Settings,
-  User,
-  Mail,
-  Lock,
-  Target,
-  Shield,
-  Trash2,
-  CheckCircle2,
-  AlertCircle,
-  Database,
-  LogOut,
-  Sun,
-  Moon,
-} from 'lucide-react';
+import { User, Check, Sparkles, Shield, Bell, Save, Flame, Trophy } from 'lucide-react';
 import { useStudy } from '../context/StudyContext';
+import { PRESET_AVATARS, CartoonAvatar } from '../data/avatars';
 
-interface SettingsPageProps {
-  onSignOut?: () => void;
-}
+export const SettingsPage: React.FC = () => {
+  const { profile, stats, updateAvatar, updateProfile, notification } = useStudy();
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({ onSignOut }) => {
-  const { user, stats, resetPassword, updateUserGoals, signOut } = useStudy();
+  const [displayName, setDisplayName] = useState(profile?.displayName || '');
+  const [bio, setBio] = useState(profile?.bio || '');
+  const [targetExam, setTargetExam] = useState(profile?.targetExam || '');
+  const [filterGender, setFilterGender] = useState<'All' | 'Female' | 'Male'>('All');
+  const [saving, setSaving] = useState(false);
 
-  const handleSignOutAction = async () => {
-    await signOut();
-    onSignOut?.();
-  };
+  const filteredAvatars = PRESET_AVATARS.filter(
+    (a) => filterGender === 'All' || a.gender === filterGender
+  );
 
-  const [displayName, setDisplayName] = useState(user?.displayName || 'Student');
-  const [dailyMinutes, setDailyMinutes] = useState(user?.dailyGoalMinutes || 60);
-  const [weeklyQuizzes, setWeeklyQuizzes] = useState(user?.weeklyGoalQuizzes || 5);
-  const [message, setMessage] = useState<string | null>(null);
-  const [isResetting, setIsResetting] = useState(false);
-  const [isLightMode, setIsLightMode] = useState(() => document.body.classList.contains('theme-light'));
-
-  const toggleTheme = (light: boolean) => {
-    setIsLightMode(light);
-    if (light) {
-      document.body.classList.add('theme-light');
-      localStorage.setItem('studykit_theme', 'light');
-    } else {
-      document.body.classList.remove('theme-light');
-      localStorage.setItem('studykit_theme', 'dark');
-    }
-    setMessage(`Theme switched to ${light ? 'High-Contrast Light' : 'Deep Black'} mode.`);
-    setTimeout(() => setMessage(null), 3000);
-  };
-
-  const handleSaveGoals = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateUserGoals(dailyMinutes, weeklyQuizzes);
-    setMessage('Your study targets have been updated successfully.');
-    setTimeout(() => setMessage(null), 3000);
-  };
-
-  const handlePasswordReset = async () => {
-    if (!user?.email) return;
-    setIsResetting(true);
-    const res = await resetPassword(user.email);
-    setIsResetting(false);
-    if (res.success) {
-      setMessage(`A password reset link has been dispatched to ${user.email}.`);
-    } else {
-      setMessage(`Notice: ${res.error}`);
-    }
-    setTimeout(() => setMessage(null), 4000);
+    setSaving(true);
+    await updateProfile({
+      displayName,
+      bio,
+      targetExam,
+    });
+    setSaving(false);
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-4xl mx-auto space-y-8 animate-fade-in">
-      <div className="pb-6 border-b border-[#2A2A2A]">
-        <div className="flex items-center gap-2 text-xs font-semibold text-[#F2C230] uppercase tracking-wider mb-1">
-          <Settings className="w-4 h-4" />
-          <span>Student Account</span>
-        </div>
-        <h1 className="text-3xl font-extrabold text-white font-['Outfit']">Account Settings</h1>
+    <div className="space-y-8 max-w-4xl mx-auto pb-12">
+      {/* Header */}
+      <div className="border-b border-neutral-800 pb-5">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+          Account Settings
+        </h1>
         <p className="text-sm text-neutral-400 mt-1">
-          Manage your personal profile, revision preferences, and security settings.
+          Customize your scholar profile, select your cartoon avatar, and manage your study preferences.
         </p>
       </div>
 
-      {message && (
-        <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-800 text-emerald-200 text-xs flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{message}</span>
+      {notification && (
+        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+          <span>{notification}</span>
         </div>
       )}
 
-      {/* 1. Student Profile Card */}
-      <div className="p-6 rounded-2xl bg-[#1C1C1C] border border-[#2B2B2B] space-y-5">
-        <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-          <User className="w-4 h-4 text-[#F2C230]" />
-          <span>Personal Information</span>
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+      {/* Avatar Selection Section */}
+      <div className="bg-neutral-900/90 border border-neutral-800 rounded-2xl p-6 relative overflow-hidden backdrop-blur-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-800">
           <div>
-            <label className="text-neutral-400 block mb-1">Display Name</label>
-            <div className="p-3 rounded-lg bg-[#141414] border border-[#2F2F2F] text-white font-semibold">
-              {user?.displayName || 'Student'}
-            </div>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <span>Cartoon Scholar Avatar</span>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                Pre-Designed
+              </span>
+            </h2>
+            <p className="text-xs text-neutral-400 mt-0.5">
+              Choose your representative cartoon character for the Leaderboard and Study Tiers.
+            </p>
           </div>
 
-          <div>
-            <label className="text-neutral-400 block mb-1">Registered Email</label>
-            <div className="p-3 rounded-lg bg-[#141414] border border-[#2F2F2F] text-white font-mono">
-              {user?.email || 'student@studykit.edu'}
-            </div>
+          {/* Gender Filter Buttons */}
+          <div className="flex items-center gap-1.5 bg-neutral-950 p-1 rounded-xl border border-neutral-800 self-start sm:self-auto">
+            {(['All', 'Female', 'Male'] as const).map((gender) => (
+              <button
+                key={gender}
+                onClick={() => setFilterGender(gender)}
+                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  filterGender === gender
+                    ? 'bg-amber-500 text-black'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                {gender}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Avatar Selection Grid */}
-        <div className="pt-4 border-t border-[#2B2B2B]">
-          <label className="text-neutral-400 block mb-3 text-xs">Choose Your Avatar</label>
-          <div className="grid grid-cols-4 gap-3">
-            {[1, 2, 3, 4].map((id) => {
-              const url = `/src/assets/images/toon_avatar_${id}.jpg`;
+        {/* Current Selected Avatar Preview Banner */}
+        <div className="mt-5 p-4 rounded-xl bg-neutral-950/70 border border-neutral-800 flex items-center gap-4">
+          <div className="relative w-16 h-16 rounded-full overflow-hidden bg-neutral-800 border-2 border-amber-500 shadow-md shadow-amber-500/20 shrink-0">
+            {profile?.avatarUrl && (
+              <img
+                src={profile.avatarUrl}
+                alt={profile?.displayName || 'User'}
+                className="w-full h-full object-cover"
+              />
+            )}
+          </div>
+          <div>
+            <span className="text-xs text-neutral-400">Current Active Avatar</span>
+            <h3 className="text-base font-bold text-white">
+              {PRESET_AVATARS.find((a) => a.id === profile?.avatarId)?.name || 'Custom Character'}
+            </h3>
+            <span className="text-xs text-amber-400 font-medium">
+              Displayed with your {stats.currentStreak}-day streak on the Leaderboard
+            </span>
+          </div>
+        </div>
+
+        {/* Fun Selection Grid */}
+        <div className="mt-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {filteredAvatars.map((avatar: CartoonAvatar) => {
+              const isSelected = profile.avatarId === avatar.id;
               return (
                 <button
-                  key={id}
-                  onClick={() => {}}
-                  className={`p-1 rounded-full border-2 transition-all ${user?.avatarUrl === url ? 'border-[#F2C230] scale-105' : 'border-transparent hover:border-[#333]'}`}
+                  key={avatar.id}
+                  onClick={() => updateAvatar(avatar.id)}
+                  className={`group relative p-3.5 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-between ${
+                    isSelected
+                      ? 'bg-amber-500/10 border-amber-500 ring-2 ring-amber-500/30 shadow-lg shadow-amber-500/10'
+                      : 'bg-neutral-950/60 border-neutral-800 hover:border-neutral-700 hover:bg-neutral-900/60'
+                  }`}
                 >
-                  <img src={url} alt={`Avatar ${id}`} className="w-16 h-16 rounded-full" />
+                  {/* Selected Badge */}
+                  {isSelected && (
+                    <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-amber-500 text-black flex items-center justify-center shadow">
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    </div>
+                  )}
+
+                  {/* Avatar Image (rendered via inline SVG Data URI to guarantee visibility!) */}
+                  <div className="w-20 h-20 rounded-full overflow-hidden bg-neutral-800 p-0.5 my-2 border border-neutral-700/60 group-hover:scale-105 transition-transform">
+                    <img
+                      src={avatar.svgDataUri}
+                      alt={avatar.name}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  </div>
+
+                  {/* Character Name & Tag */}
+                  <div className="mt-2 w-full">
+                    <span className="text-xs font-bold text-white block truncate">
+                      {avatar.name}
+                    </span>
+                    <span className="text-[10px] text-neutral-400 block mt-0.5">
+                      {avatar.tag}
+                    </span>
+                    <span
+                      className={`inline-block text-[9px] font-semibold px-2 py-0.5 rounded-full mt-1.5 ${
+                        avatar.gender === 'Female'
+                          ? 'bg-pink-500/10 text-pink-400 border border-pink-500/20'
+                          : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                      }`}
+                    >
+                      {avatar.gender}
+                    </span>
+                  </div>
                 </button>
               );
             })}
@@ -131,154 +157,68 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onSignOut }) => {
         </div>
       </div>
 
-      <div className="pt-2 flex items-center justify-between text-xs border-t border-[#2A2A2A]">
-          <span className="text-neutral-400">Security & Authentication:</span>
-          <button
-            onClick={handlePasswordReset}
-            disabled={isResetting}
-            className="text-[#F2C230] hover:underline font-medium"
-          >
-            {isResetting ? 'Sending link...' : 'Send Password Reset Email'}
-          </button>
-        </div>
-
-
-
-      {/* 2. Study Targets */}
-      <form onSubmit={handleSaveGoals} className="p-6 rounded-2xl bg-[#1C1C1C] border border-[#2B2B2B] space-y-5">
-        <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-          <Target className="w-4 h-4 text-[#F2C230]" />
-          <span>Revision & Study Goals</span>
+      {/* Profile Form */}
+      <form
+        onSubmit={handleSaveProfile}
+        className="bg-neutral-900/90 border border-neutral-800 rounded-2xl p-6 backdrop-blur-sm space-y-4"
+      >
+        <h2 className="text-lg font-bold text-white pb-3 border-b border-neutral-800">
+          Personal Details
         </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-neutral-300 block mb-1.5">Daily Study Target (Minutes)</label>
+            <label className="block text-xs font-semibold text-neutral-300 mb-1.5">
+              Display Name
+            </label>
             <input
-              type="number"
-              value={dailyMinutes}
-              onChange={(e) => setDailyMinutes(Number(e.target.value))}
-              className="w-full bg-[#141414] border border-[#333333] rounded-lg p-2.5 text-white font-mono"
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+              placeholder="Your scholar name"
+              required
             />
-            <p className="text-[10px] text-neutral-500 mt-1">Recommended for college: 45–90 mins/day</p>
           </div>
 
           <div>
-            <label className="text-neutral-300 block mb-1.5">Weekly Quizzes Target</label>
+            <label className="block text-xs font-semibold text-neutral-300 mb-1.5">
+              Target Exam / Focus Goal
+            </label>
             <input
-              type="number"
-              value={weeklyQuizzes}
-              onChange={(e) => setWeeklyQuizzes(Number(e.target.value))}
-              className="w-full bg-[#141414] border border-[#333333] rounded-lg p-2.5 text-white font-mono"
+              type="text"
+              value={targetExam}
+              onChange={(e) => setTargetExam(e.target.value)}
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+              placeholder="e.g. MCAT, USMLE, SAT, Algorithms"
             />
-            <p className="text-[10px] text-neutral-500 mt-1">Recommended: 3–7 quizzes/week</p>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-neutral-300 mb-1.5">
+            Academic Bio
+          </label>
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            rows={3}
+            className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 resize-none"
+            placeholder="Tell your study peers about your study routine or specializations..."
+          />
         </div>
 
         <div className="pt-2 flex justify-end">
           <button
             type="submit"
-            className="px-5 py-2.5 bg-[#F2C230] hover:bg-[#e0b127] text-black font-bold text-xs rounded-xl shadow-sm"
+            disabled={saving}
+            className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-amber-500/20 disabled:opacity-50"
           >
-            Update Study Targets
+            <Save className="w-4 h-4 stroke-[2.5]" />
+            {saving ? 'Saving...' : 'Save Profile Changes'}
           </button>
         </div>
       </form>
-
-      {/* Theme & Accessibility Card */}
-      <div className="p-6 rounded-2xl bg-[#1C1C1C] border border-[#2B2B2B] space-y-4">
-        <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-          {isLightMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-[#F2C230]" />}
-          <span>Appearance & Accessibility Theme</span>
-        </h2>
-        <p className="text-xs text-neutral-400">
-          Choose between the immersive 'Deep Black' theme and high-contrast 'Light' mode for optimal viewing comfort.
-        </p>
-        <div className="flex items-center gap-3 pt-2">
-          <button
-            type="button"
-            onClick={() => toggleTheme(false)}
-            className={`flex-1 py-3 px-4 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-              !isLightMode
-                ? 'bg-[#000000] border-[#D97706] text-white shadow-md'
-                : 'bg-[#141414] border-[#2A2A2A] text-neutral-400 hover:text-white'
-            }`}
-          >
-            <Moon className="w-4 h-4 text-[#D97706]" />
-            <span>Deep Black (Default)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => toggleTheme(true)}
-            className={`flex-1 py-3 px-4 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-              isLightMode
-                ? 'bg-white border-amber-500 text-neutral-900 shadow-md font-bold'
-                : 'bg-[#141414] border-[#2A2A2A] text-neutral-400 hover:text-white'
-            }`}
-          >
-            <Sun className="w-4 h-4 text-amber-500" />
-            <span>High-Contrast Light</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 3. Account Storage Overview */}
-      <div className="p-6 rounded-2xl bg-[#1C1C1C] border border-[#2B2B2B] space-y-4">
-        <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-          <Database className="w-4 h-4 text-[#F2C230]" />
-          <span>Storage & Cloud Vault</span>
-        </h2>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div className="p-3.5 rounded-xl bg-[#141414] border border-[#262626]">
-            <span className="text-[10px] text-neutral-400 block">Documents Saved</span>
-            <span className="text-lg font-bold font-mono text-white">{stats.totalDocs}</span>
-          </div>
-          <div className="p-3.5 rounded-xl bg-[#141414] border border-[#262626]">
-            <span className="text-[10px] text-neutral-400 block">Summaries Generated</span>
-            <span className="text-lg font-bold font-mono text-white">{stats.totalSummaries}</span>
-          </div>
-          <div className="p-3.5 rounded-xl bg-[#141414] border border-[#262626]">
-            <span className="text-[10px] text-neutral-400 block">Quizzes Completed</span>
-            <span className="text-lg font-bold font-mono text-white">{stats.totalQuizzes}</span>
-          </div>
-          <div className="p-3.5 rounded-xl bg-[#141414] border border-[#262626]">
-            <span className="text-[10px] text-neutral-400 block">Cards Reviewed</span>
-            <span className="text-lg font-bold font-mono text-white">{stats.flashcardsReviewed}</span>
-          </div>
-        </div>
-
-        <div className="pt-4 flex items-center justify-between border-t border-[#2A2A2A]">
-          <span className="text-xs text-neutral-400">Account Session</span>
-          <button
-            onClick={handleSignOutAction}
-            className="px-4 py-2 bg-red-950/60 hover:bg-red-900 text-red-300 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <LogOut className="w-3.5 h-3.5 text-red-400" />
-            <span>Sign Out</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 4. Session & Sign Out Card */}
-      <div className="p-6 rounded-2xl bg-[#1C1C1C] border border-red-900/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-red-950/50 border border-red-900/60 flex items-center justify-center text-red-400 shrink-0">
-            <LogOut className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-sm font-bold text-white">Sign Out of Account</h2>
-            <p className="text-xs text-neutral-400 mt-0.5">End your active session securely on this device.</p>
-          </div>
-        </div>
-        <button
-          onClick={handleSignOutAction}
-          className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer shrink-0"
-        >
-          <LogOut className="w-4 h-4" />
-          <span>Sign Out Now</span>
-        </button>
-      </div>
     </div>
   );
 };

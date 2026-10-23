@@ -1,567 +1,137 @@
-import React, { useState, useMemo } from 'react';
-import {
-  FileText,
-  HelpCircle,
-  Layers,
-  GraduationCap,
-  MessageSquare,
-  Upload,
-  ArrowRight,
-  Target,
-  Edit2,
-  BookOpen,
-  FileCheck,
-} from 'lucide-react';
-import { useStudy } from '@/context/StudyContext';
-import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { StreakActivityTracker } from '@/components/StreakActivityTracker';
-import { Leaderboard } from '@/components/Leaderboard';
-import { StreakMilestoneCelebration } from '@/components/StreakMilestoneCelebration';
+import React from 'react';
+import { Flame, Clock, Brain, BookOpen, ChevronRight, Zap, Target, Sparkles, Award } from 'lucide-react';
+import { useStudy } from '../context/StudyContext';
+import { StreakActivityTracker } from '../components/StreakActivityTracker';
+import { Leaderboard } from '../components/Leaderboard';
 
-interface DashboardPageProps {
-  setCurrentView: (view: string) => void;
-  openUploadModal: () => void;
-  onOpenSummary: (summaryId: string) => void;
-}
-
-export const DashboardPage: React.FC<DashboardPageProps> = ({
-  setCurrentView,
-  openUploadModal,
-  onOpenSummary,
-}) => {
-  const {
-    user,
-    stats,
-    documents,
-    summaries,
-    quizzes,
-    flashcardDecks,
-    updateUserGoals,
-    updateActivity,
-  } = useStudy();
-
-  React.useEffect(() => {
-    (async () => await updateActivity())();
-  }, []);
-
-  const chartContainerRef = React.useRef<HTMLDivElement>(null);
-  const [chartWidth, setChartWidth] = useState(600);
-
-  React.useEffect(() => {
-    if (!chartContainerRef.current) return;
-    const handleResize = () => {
-      if (chartContainerRef.current) {
-        const w = chartContainerRef.current.clientWidth;
-        if (w > 0) setChartWidth(w);
-      }
-    };
-    handleResize();
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.contentRect.width > 0) {
-          setChartWidth(Math.floor(entry.contentRect.width));
-        }
-      }
-    });
-    observer.observe(chartContainerRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  const [isEditingGoals, setIsEditingGoals] = useState(false);
-  const [dailyMinutesInput, setDailyMinutesInput] = useState(user?.dailyGoalMinutes || 60);
-  const [weeklyQuizzesInput, setWeeklyQuizzesInput] = useState(user?.weeklyGoalQuizzes || 5);
-
-  const handleSaveGoals = () => {
-    updateUserGoals(dailyMinutesInput, weeklyQuizzesInput);
-    setIsEditingGoals(false);
-  };
-
-  // Recent items
-  const recentDoc = documents[0];
-  const recentSummary = summaries[0];
-  const recentQuiz = quizzes[0];
-  const recentDeck = flashcardDecks[0];
-
-  const weeklyAnalyticsData = useMemo(() => {
-    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const stored = localStorage.getItem('studykit_activity_days');
-    const actMap = stored ? JSON.parse(stored) : {};
-
-    const today = new Date();
-    const currentDayOfWeek = today.getDay();
-    const diffToMonday = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
-    const monday = new Date(today);
-    monday.setDate(today.getDate() + diffToMonday);
-
-    return dayNames.map((dayName, idx) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + idx);
-      const k = d.toISOString().split('T')[0];
-      const act = actMap[k] || { minutes: 0, quizzes: 0, docs: 0 };
-      const hours = Number(((act.minutes || 0) / 60).toFixed(1));
-      return {
-        day: dayName,
-        isActive: hours > 0,
-        hours: Math.max(hours, 0),
-      };
-    });
-  }, [quizzes.length, documents.length]);
+export const DashboardPage: React.FC = () => {
+  const { profile, stats, setActiveTab } = useStudy();
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-8 bg-[#000000]">
-      <StreakMilestoneCelebration />
+    <div className="space-y-8 max-w-6xl mx-auto pb-12">
       {/* Welcome Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#1C1C1C] animate-stagger-1">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-semibold text-white font-['Clash_Display']">
-            Welcome back{user?.displayName ? `, ${user.displayName}` : ''}!
-          </h1>
-          <p className="text-sm text-neutral-400 mt-1">
-            Ready to make progress with your studies?
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-neutral-900 via-neutral-900/90 to-neutral-950 border border-neutral-800 relative overflow-hidden">
+        {/* Glow decoration */}
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex items-center gap-5 relative z-10">
           <button
-            onClick={openUploadModal}
-            className="px-4 py-2.5 bg-gradient-to-r from-[#D97706] to-[#EA580C] hover:from-[#B45309] hover:to-[#C2410C] text-white font-semibold text-xs rounded-xl transition-all shadow-sm shadow-[#D97706]/20 flex items-center gap-2 cursor-pointer card-hover-lift"
+            onClick={() => setActiveTab('settings')}
+            className="group relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-neutral-800 border-2 border-amber-500 hover:border-amber-400 shadow-xl shadow-amber-500/20 shrink-0 cursor-pointer transition-transform hover:scale-105"
+            title="Click to change your avatar in Account Settings"
           >
-            <Upload className="w-4 h-4" />
-            <span>Upload New Material</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Real Interactive Streak & Activity Tracker */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 animate-stagger-2 card-hover-lift">
-          <StreakActivityTracker />
-        </div>
-        <div className="lg:col-span-1 animate-stagger-2 card-hover-lift">
-          <Leaderboard />
-        </div>
-      </div>
-
-      {/* A. QUICK ACTIONS */}
-      <section className="space-y-3 animate-stagger-3">
-        <h2 className="text-xs uppercase tracking-wider text-[#D97706] font-semibold font-['Clash_Display']">
-          Quick Actions
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <button
-            onClick={openUploadModal}
-            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer card-hover-lift"
-          >
-            <div className="w-8 h-8 rounded-lg bg-black text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#333333]">
-              <Upload className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-xs font-semibold text-white block font-['Clash_Display']">Upload PDF</span>
-              <span className="text-[10px] text-neutral-400">Add documents</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setCurrentView('summarizer')}
-            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer card-hover-lift"
-          >
-            <div className="w-8 h-8 rounded-lg bg-black text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#333333]">
-              <FileText className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-xs font-semibold text-white block font-['Clash_Display']">Summarise</span>
-              <span className="text-[10px] text-neutral-400">Extract notes</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setCurrentView('quiz')}
-            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer card-hover-lift"
-          >
-            <div className="w-8 h-8 rounded-lg bg-black text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#333333]">
-              <HelpCircle className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-xs font-semibold text-white block font-['Clash_Display']">Generate Quiz</span>
-              <span className="text-[10px] text-neutral-400">Test concepts</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setCurrentView('flashcards')}
-            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer card-hover-lift"
-          >
-            <div className="w-8 h-8 rounded-lg bg-black text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#333333]">
-              <Layers className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-xs font-semibold text-white block font-['Clash_Display']">Flashcards</span>
-              <span className="text-[10px] text-neutral-400">Spaced recall</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setCurrentView('practice-tests')}
-            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer card-hover-lift"
-          >
-            <div className="w-8 h-8 rounded-lg bg-black text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#333333]">
-              <GraduationCap className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-xs font-semibold text-white block font-['Clash_Display']">Practice Test</span>
-              <span className="text-[10px] text-neutral-400">Timed exam</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setCurrentView('study-assistant')}
-            className="p-3.5 rounded-xl bg-[#0A0A0A] hover:bg-[#121212] border border-[#1C1C1C] hover:border-[#D97706]/50 text-left transition-all group flex flex-col justify-between cursor-pointer card-hover-lift"
-          >
-            <div className="w-8 h-8 rounded-lg bg-black text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform border border-[#333333]">
-              <MessageSquare className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-xs font-semibold text-white block font-['Clash_Display']">Ask AI</span>
-              <span className="text-[10px] text-neutral-400">RAG Partner</span>
-            </div>
-          </button>
-        </div>
-      </section>
-
-      {/* C. STUDY STATISTICS */}
-      <section className="space-y-3 animate-stagger-4">
-        <h2 className="text-xs uppercase tracking-wider text-[#D97706] font-semibold font-['Clash_Display']">
-          Your Study Statistics
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C] card-hover-lift">
-            <span className="text-[11px] text-neutral-400 block mb-1">Documents</span>
-            <span className="text-2xl font-bold font-mono text-white tabular-nums">
-              {stats.totalDocs}
-            </span>
-          </div>
-
-          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C] card-hover-lift">
-            <span className="text-[11px] text-neutral-400 block mb-1">Summaries</span>
-            <span className="text-2xl font-bold font-mono text-white tabular-nums">
-              {stats.totalSummaries}
-            </span>
-          </div>
-
-          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C] card-hover-lift">
-            <span className="text-[11px] text-neutral-400 block mb-1">Quizzes Done</span>
-            <span className="text-2xl font-bold font-mono text-white tabular-nums">
-              {stats.totalQuizzes}
-            </span>
-          </div>
-
-          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C] card-hover-lift">
-            <span className="text-[11px] text-neutral-400 block mb-1">Average Score</span>
-            <span className="text-2xl font-bold font-mono text-[#FDE047] tabular-nums">
-              {stats.averageScore}%
-            </span>
-          </div>
-
-          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C] card-hover-lift">
-            <span className="text-[11px] text-neutral-400 block mb-1">Cards Reviewed</span>
-            <span className="text-2xl font-bold font-mono text-white tabular-nums">
-              {stats.flashcardsReviewed}
-            </span>
-          </div>
-
-          <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C] card-hover-lift">
-            <span className="text-[11px] text-neutral-400 block mb-1">Sessions Done</span>
-            <span className="text-2xl font-bold font-mono text-white tabular-nums">
-              {stats.studySessions}
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* D. ANALYTICS WIDGET */}
-      <section className="mt-8 p-6 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] animate-stagger-5 card-hover-lift">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-          <div>
-            <h3 className="text-sm font-bold text-white font-['Clash_Display']">Weekly Activity Analytics</h3>
-            <p className="text-xs text-neutral-400">Streak consistency & daily study hours over the past 7 days</p>
-          </div>
-          <div className="flex items-center gap-4 text-xs font-mono">
-            <span className="flex items-center gap-1.5 text-neutral-300">
-              <span className="w-2.5 h-2.5 rounded-sm bg-[#D97706]" /> Active Study Day
-            </span>
-            <span className="flex items-center gap-1.5 text-neutral-500">
-              <span className="w-2.5 h-2.5 rounded-sm bg-[#262626]" /> Rest / Broken
-            </span>
-          </div>
-        </div>
-        <div ref={chartContainerRef} className="h-64 w-full overflow-hidden flex items-center justify-center">
-          {chartWidth > 0 && (
-            <BarChart width={chartWidth} height={256} data={weeklyAnalyticsData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#222222" vertical={false} />
-              <XAxis dataKey="day" stroke="#737373" fontSize={11} tickLine={false} />
-              <YAxis stroke="#737373" fontSize={11} tickLine={false} unit="h" />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#141414', border: '1px solid #2E2E2E', borderRadius: '8px' }}
-                itemStyle={{ fontSize: '11px', color: '#FFFFFF' }}
+            {profile?.avatarUrl ? (
+              <img
+                src={profile.avatarUrl}
+                alt={profile?.displayName || 'User'}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = 'none';
+                }}
               />
-              <Bar dataKey="hours" radius={[4, 4, 0, 0]}>
-                {weeklyAnalyticsData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.isActive ? '#D97706' : '#262626'} />
-                ))}
-              </Bar>
-            </BarChart>
-          )}
-        </div>
-      </section>
-
-      {/* D. CONTINUE STUDYING & E. STUDY GOALS */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-stagger-5">
-        {/* Continue Studying */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs uppercase tracking-wider text-neutral-400 font-semibold font-['Clash_Display']">
-              Continue Studying
-            </h2>
-            <button
-              onClick={() => setCurrentView('library')}
-              className="text-xs text-[#FDE047] hover:text-[#D97706] hover:underline cursor-pointer transition-colors"
-            >
-              View Full Library →
-            </button>
+            ) : null}
+            {/* Fallback initial if image fails or loading */}
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-tr from-amber-600 to-amber-400 text-black font-extrabold text-xl">
+              {profile?.displayName?.charAt(0) || 'S'}
+            </div>
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-bold text-white uppercase tracking-wider">
+              Edit
+            </div>
+          </button>
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-semibold mb-1.5">
+              <Zap className="w-3 h-3 fill-amber-400" />
+              {stats.tier} Tier Scholar
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              Welcome back, {profile?.displayName || 'Student'}!
+            </h1>
+            <p className="text-xs sm:text-sm text-neutral-400 mt-1 max-w-xl">
+              Target goal: <span className="text-neutral-200 font-semibold">{profile?.targetExam || 'Active Recall & Spaced Repetition'}</span>. Your cognitive recall retention is primed today.
+            </p>
           </div>
-
-          {recentSummary ? (
-            <div className="p-5 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] hover:border-[#D97706]/50 transition-all flex flex-col justify-between space-y-3">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 text-[10px] text-[#FDE047] font-semibold mb-1">
-                    <FileCheck className="w-3.5 h-3.5 text-[#D97706]" />
-                    <span>LATEST SUMMARY READY</span>
-                  </div>
-                  <h3 className="text-base font-semibold text-white font-['Clash_Display']">
-                    {recentSummary.title}
-                  </h3>
-                  <p className="text-xs text-neutral-400 line-clamp-2 mt-1">
-                    {recentSummary.executiveSummary}
-                  </p>
-                </div>
-              </div>
-              <div className="pt-3 border-t border-[#1C1C1C] flex items-center justify-between">
-                <span className="text-[11px] text-neutral-400">
-                  {recentSummary.chapters?.length || 0} chapters · {recentSummary.keyPoints?.length || 0} key points
-                </span>
-                <button
-                  onClick={() => onOpenSummary(recentSummary.id)}
-                  className="px-3.5 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-[#D97706] to-[#EA580C] hover:from-[#B45309] hover:to-[#C2410C] rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-[#D97706]/20"
-                >
-                  <span>Reopen Summary</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="p-8 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] text-center space-y-3 card-hover-lift">
-              <div className="w-10 h-10 rounded-full bg-[#141414] text-[#FDE047] border border-[#262626] flex items-center justify-center mx-auto">
-                <BookOpen className="w-5 h-5" />
-              </div>
-              <h3 className="text-sm font-semibold text-white font-['Clash_Display']">No documents uploaded yet</h3>
-              <p className="text-xs text-neutral-400 max-w-sm mx-auto">
-                Drop your syllabus, slides, or PDF notes to generate summaries and flashcards immediately.
-              </p>
-              <button
-                onClick={openUploadModal}
-                className="px-4 py-2 bg-gradient-to-r from-[#D97706] to-[#EA580C] hover:from-[#B45309] hover:to-[#C2410C] text-white text-xs font-semibold rounded-lg inline-flex items-center gap-2 cursor-pointer shadow-sm card-hover-lift"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>Upload First PDF</span>
-              </button>
-            </div>
-          )}
-
-          {/* Quick Resume Card for Flashcards or Quiz */}
-          {recentDeck && (
-            <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#1C1C1C] flex items-center justify-between card-hover-lift">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-[#141414] text-[#FDE047] border border-[#262626] flex items-center justify-center">
-                  <Layers className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-semibold text-white font-['Clash_Display']">{recentDeck.title}</h4>
-                  <p className="text-[10px] text-neutral-400">
-                    {recentDeck.cardsLearned} of {recentDeck.totalCards} cards mastered
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setCurrentView('flashcards')}
-                className="px-3 py-1.5 bg-[#141414] hover:bg-[#1E1E1E] border border-[#242424] text-neutral-200 text-xs font-medium rounded-lg cursor-pointer"
-              >
-                Study Deck
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* E. STUDY GOALS */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs uppercase tracking-wider text-neutral-400 font-semibold flex items-center gap-1.5 font-['Clash_Display']">
-              <Target className="w-3.5 h-3.5 text-[#D97706]" />
-              <span>Study Goals & Pace</span>
-            </h2>
-            <button
-              onClick={() => setIsEditingGoals(!isEditingGoals)}
-              className="text-xs text-[#FDE047] hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <Edit2 className="w-3 h-3" />
-              <span>{isEditingGoals ? 'Cancel' : 'Edit Goals'}</span>
-            </button>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-[#0A0A0A] border border-[#1C1C1C] space-y-5 card-hover-lift">
-            {isEditingGoals ? (
-              <div className="space-y-4 text-xs">
-                <div>
-                  <label className="text-neutral-300 block mb-1">Daily Study Target (Minutes)</label>
-                  <input
-                    type="number"
-                    value={dailyMinutesInput}
-                    onChange={(e) => setDailyMinutesInput(Number(e.target.value))}
-                    className="w-full bg-[#050505] border border-[#262626] rounded-lg px-3 py-2 text-white font-mono focus:border-[#D97706] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-neutral-300 block mb-1">Weekly Quizzes Target</label>
-                  <input
-                    type="number"
-                    value={weeklyQuizzesInput}
-                    onChange={(e) => setWeeklyQuizzesInput(Number(e.target.value))}
-                    className="w-full bg-[#050505] border border-[#262626] rounded-lg px-3 py-2 text-white font-mono focus:border-[#D97706] focus:outline-none"
-                  />
-                </div>
-                <button
-                  onClick={handleSaveGoals}
-                  className="w-full py-2 bg-gradient-to-r from-[#D97706] to-[#EA580C] hover:from-[#B45309] hover:to-[#C2410C] text-white font-semibold rounded-lg cursor-pointer shadow-sm shadow-[#D97706]/20"
-                >
-                  Save Goals
-                </button>
-              </div>
-            ) : (
-              <>
-                {/* Goal 1: Daily Target */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-neutral-300">Daily Study Target</span>
-                    <span className="font-mono text-neutral-400">
-                      45 / {user?.dailyGoalMinutes || 60} mins
-                    </span>
-                  </div>
-                  <div className="w-full h-2.5 bg-[#000000] rounded-full overflow-hidden border border-[#1C1C1C]">
-                    <div
-                      className="h-full bg-gradient-to-r from-[#D97706] to-[#EA580C] rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          Math.round((45 / (user?.dailyGoalMinutes || 60)) * 100)
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                  <p className="text-[10px] text-neutral-400">
-                    75% of your target achieved today.
-                  </p>
-                </div>
-
-                {/* Goal 2: Weekly Quizzes */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-neutral-300">Weekly Quiz Assessments</span>
-                    <span className="font-mono text-neutral-400">
-                      {stats.totalQuizzes} / {user?.weeklyGoalQuizzes || 5} quizzes
-                    </span>
-                  </div>
-                  <div className="w-full h-2.5 bg-[#000000] rounded-full overflow-hidden border border-[#1C1C1C]">
-                    <div
-                      className="h-full bg-gradient-to-r from-[#FDE047] to-[#D97706] rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          Math.round((stats.totalQuizzes / (user?.weeklyGoalQuizzes || 5)) * 100)
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                  <p className="text-[10px] text-neutral-400">
-                    Keep testing yourself to maintain memory consolidation!
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
+        {/* Quick actions right */}
+        <div className="flex items-center gap-3 relative z-10">
+          <button
+            onClick={() => setActiveTab('quiz')}
+            className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition-all shadow-md shadow-amber-500/20 flex items-center gap-2 cursor-pointer"
+          >
+            <Brain className="w-4 h-4" />
+            Start AI Quiz
+          </button>
+          <button
+            onClick={() => setActiveTab('flashcards')}
+            className="px-4 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold border border-neutral-700 transition-all flex items-center gap-2 cursor-pointer"
+          >
+            <BookOpen className="w-4 h-4" />
+            Flashcards
+          </button>
         </div>
       </div>
 
-      {/* B. RECENT ACTIVITY TABLE */}
-      <section className="space-y-3">
-        <h2 className="text-xs uppercase tracking-wider text-neutral-400 font-semibold font-['Clash_Display']">
-          Recent Study Activity
-        </h2>
-        <div className="bg-[#0A0A0A] border border-[#1C1C1C] rounded-xl overflow-hidden">
-          <div className="divide-y divide-[#1C1C1C] text-xs">
-            {recentDoc && (
-              <div className="p-4 flex items-center justify-between hover:bg-[#121212] transition-colors">
-                <div className="flex items-center gap-3">
-                  <FileText className="w-4 h-4 text-[#D97706]" />
-                  <div>
-                    <p className="font-semibold text-white">{recentDoc.name}</p>
-                    <p className="text-[11px] text-neutral-400">Document Uploaded</p>
-                  </div>
-                </div>
-                <span className="text-[11px] font-mono text-neutral-400">
-                  {new Date(recentDoc.uploadedAt).toLocaleDateString()}
-                </span>
-              </div>
-            )}
-
-            {recentSummary && (
-              <div className="p-4 flex items-center justify-between hover:bg-[#121212] transition-colors">
-                <div className="flex items-center gap-3">
-                  <BookOpen className="w-4 h-4 text-[#FDE047]" />
-                  <div>
-                    <p className="font-semibold text-white">{recentSummary.title}</p>
-                    <p className="text-[11px] text-neutral-400">Summary Created</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => onOpenSummary(recentSummary.id)}
-                  className="text-xs text-[#FDE047] hover:text-[#D97706] hover:underline cursor-pointer"
-                >
-                  View
-                </button>
-              </div>
-            )}
-
-            {recentQuiz && (
-              <div className="p-4 flex items-center justify-between hover:bg-[#121212] transition-colors">
-                <div className="flex items-center gap-3">
-                  <HelpCircle className="w-4 h-4 text-emerald-400" />
-                  <div>
-                    <p className="font-semibold text-white">{recentQuiz.title}</p>
-                    <p className="text-[11px] text-neutral-400">
-                      Quiz Completed · Score: <strong className="text-white">{recentQuiz.score}%</strong>
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setCurrentView('quiz')}
-                  className="text-xs text-[#FDE047] hover:text-[#D97706] hover:underline cursor-pointer"
-                >
-                  Retake
-                </button>
-              </div>
-            )}
+      {/* Metrics Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 sm:p-5 rounded-2xl bg-neutral-900/80 border border-neutral-800">
+          <div className="flex items-center justify-between text-neutral-400 mb-2">
+            <span className="text-xs font-medium">Daily Streak</span>
+            <Flame className="w-4 h-4 text-amber-500" />
           </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-white">
+            {stats.currentStreak}
+            <span className="text-xs text-neutral-400 font-normal ml-1">days</span>
+          </div>
+          <span className="text-[11px] text-amber-400 font-medium block mt-1">
+            Tier: {stats.tier}
+          </span>
         </div>
-      </section>
+
+        <div className="p-4 sm:p-5 rounded-2xl bg-neutral-900/80 border border-neutral-800">
+          <div className="flex items-center justify-between text-neutral-400 mb-2">
+            <span className="text-xs font-medium">Study Focus</span>
+            <Clock className="w-4 h-4 text-blue-400" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-white">
+            {Math.floor(stats.totalMinutesStudied / 60)}h {stats.totalMinutesStudied % 60}m
+          </div>
+          <span className="text-[11px] text-neutral-400 block mt-1">
+            Total active recall time
+          </span>
+        </div>
+
+        <div className="p-4 sm:p-5 rounded-2xl bg-neutral-900/80 border border-neutral-800">
+          <div className="flex items-center justify-between text-neutral-400 mb-2">
+            <span className="text-xs font-medium">Quizzes Solved</span>
+            <Brain className="w-4 h-4 text-purple-400" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-white">
+            {stats.totalQuizzesTaken}
+          </div>
+          <span className="text-[11px] text-purple-400 font-medium block mt-1">
+            87% avg accuracy
+          </span>
+        </div>
+
+        <div className="p-4 sm:p-5 rounded-2xl bg-neutral-900/80 border border-neutral-800">
+          <div className="flex items-center justify-between text-neutral-400 mb-2">
+            <span className="text-xs font-medium">Flashcards Mastered</span>
+            <Target className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-white">
+            {stats.totalFlashcardsReviewed}
+          </div>
+          <span className="text-[11px] text-emerald-400 font-medium block mt-1">
+            Spaced repetition cycle
+          </span>
+        </div>
+      </div>
+
+      {/* Main Focus: Streak Activity Tracker (Clean, No badge icon) */}
+      <StreakActivityTracker />
+
+      {/* Leaderboard Section (Progress rings & Top-3 Badges) */}
+      <Leaderboard />
     </div>
   );
 };

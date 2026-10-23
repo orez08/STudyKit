@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Pause, RotateCcw } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 
 export const PomodoroTimer: React.FC = () => {
+  const { showToast } = useToast();
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
 
@@ -13,10 +15,10 @@ export const PomodoroTimer: React.FC = () => {
       }, 1000);
     } else if (timeLeft === 0) {
       setIsActive(false);
-      alert('Pomodoro session finished!');
+      showToast('Pomodoro Finished!', 'Great job! Time for a short 5-minute break.', 'task', 5000);
     }
     return () => clearInterval(interval);
-  }, [isActive, timeLeft]);
+  }, [isActive, timeLeft, showToast]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
